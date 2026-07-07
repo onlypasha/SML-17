@@ -1,2 +1,2 @@
 # Agent Instructions
-Selalu kerjakan fitur atau program sesuai dengan rencana yang ada di ARCHITECTURE.MD, PRD.MD DAN TASKS.MD. Jika ada perintah yang ambigu dan tidak sesuai atau tidak lengkap selalu konfirmasi ke saya
+Selalu kerjakan fitur atau program sesuai dengan rencana yang ada di ARCHITECTURE.MD, PRD.MD DAN TASKS.MD. Jika ada perintah yang ambigu dan tidak sesuai atau tidak lengkap selalu konfirmasi ke **saya**

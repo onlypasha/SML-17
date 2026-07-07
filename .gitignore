@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+env/
+ENV/
+
+# Build agent
+agent/build/
+agent/dist/
+agent/*.spec
+
+# Node / React
+node_modules/
+dist/
+.npm/
+.pnp
+.pnp.js
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

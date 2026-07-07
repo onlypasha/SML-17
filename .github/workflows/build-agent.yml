@@ -31,7 +31,7 @@ jobs:
       - name: Build agent.exe
         run: |
           cd agent
-          pyinstaller --onefile --noconsole main.py --name agent
+          pyinstaller agent.spec
 
       # 5. Upload hasil .exe sebagai artifact
       - name: Upload artifact

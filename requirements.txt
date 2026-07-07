@@ -1,0 +1,14 @@
+# Server Dependencies
+fastapi
+uvicorn
+pydantic
+
+# Agent Dependencies
+psutil
+requests
+pyinstaller
+aiortc
+av
+mss
+websockets
+numpy
