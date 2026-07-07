@@ -25,18 +25,17 @@ jobs:
       # 3. Install dependencies
       - name: Install dependencies
         run: |
-          pip install pyinstaller psutil requests
+          pip install -r requirements.txt
 
       # 4. Build .exe
       - name: Build agent.exe
         run: |
-          cd agent
-          pyinstaller agent.spec
+          pyinstaller agent/agent.spec
 
       # 5. Upload hasil .exe sebagai artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: agent-windows
-          path: agent/dist/agent.exe
+          path: dist/agent.exe
           retention-days: 7    # simpan 7 hari
