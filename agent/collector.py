@@ -104,46 +104,29 @@ def get_installed_apps() -> list:
 
 def get_running_services() -> list:
     """
-    Enumerate running services / processes.
+    Enumerate running processes.
 
-    On Windows: uses psutil.win32_service_iter() to list Windows services.
-    On Linux/other: falls back to listing top processes by memory as a
-    lightweight development substitute.
+    Uses psutil.process_iter() which works reliably on all platforms
+    including PyInstaller-bundled .exe on Windows.
 
     Returns:
         list of dict with keys: pid (int), name (str), status (str)
     """
     services: list = []
 
-    if platform.system() == "Windows":
-        try:
-            for svc in psutil.win32_service_iter():
-                try:
-                    info = svc.as_dict()
-                    services.append({
-                        "pid": info.get("pid") or 0,
-                        "name": info.get("name", ""),
-                        "status": info.get("status", "unknown"),
-                    })
-                except Exception:
-                    continue
-        except Exception as e:
-            logger.warning("Failed to enumerate Windows services: %s", e)
-    else:
-        # Linux / macOS fallback — list top processes for dev testing
-        try:
-            for proc in psutil.process_iter(["pid", "name", "status"]):
-                try:
-                    info = proc.info
-                    services.append({
-                        "pid": info["pid"],
-                        "name": info["name"] or "",
-                        "status": info["status"] or "unknown",
-                    })
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
-        except Exception as e:
-            logger.warning("Failed to enumerate processes: %s", e)
+    try:
+        for proc in psutil.process_iter(["pid", "name", "status"]):
+            try:
+                info = proc.info
+                services.append({
+                    "pid": info["pid"],
+                    "name": info["name"] or "",
+                    "status": info["status"] or "unknown",
+                })
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+    except Exception as e:
+        print(f"[collector] Failed to enumerate processes: {e}")
 
     return services
 
