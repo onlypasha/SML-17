@@ -1,18 +1,40 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Monitor, Cpu, HardDrive, Activity, Server, ChevronLeft } from 'lucide-react';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+import {
+  Monitor, Cpu, HardDrive, Activity, ChevronLeft, Circle,
+  ArrowUpRight, LayoutGrid, Package, Cog, X
+} from 'lucide-react';
 
 const API_URL = 'http://localhost:8000';
+const HISTORY_LENGTH = 20;
 
 function App() {
   const [agents, setAgents] = useState({});
   const [selectedAgent, setSelectedAgent] = useState(null);
+  const [view, setView] = useState('grid'); // 'grid' | 'detail' | 'multiscreen'
+  const historyRef = useRef({});
 
   useEffect(() => {
     const fetchAgents = async () => {
       try {
         const response = await axios.get(`${API_URL}/agents/`);
-        setAgents(response.data);
+        const data = response.data;
+
+        // Update history for each agent
+        const history = historyRef.current;
+        Object.values(data).forEach((agent) => {
+          const id = agent.agent_id;
+          if (!history[id]) history[id] = [];
+          const arr = history[id];
+          arr.push({
+            cpu: agent.cpu_percent || 0,
+            ram: agent.ram_percent || 0,
+          });
+          if (arr.length > HISTORY_LENGTH) arr.shift();
+        });
+
+        setAgents(data);
       } catch (error) {
         console.error("Error fetching agents:", error);
       }
@@ -23,145 +45,235 @@ function App() {
   }, []);
 
   const agentList = Object.values(agents);
+  const onlineCount = agentList.filter(a => a.status === 'online').length;
+  const offlineCount = agentList.filter(a => a.status === 'offline').length;
+  const onlineAgents = agentList.filter(a => a.status === 'online');
+
+  const handleSelectAgent = useCallback((agentId) => {
+    setSelectedAgent(agentId);
+    setView('detail');
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setSelectedAgent(null);
+    setView('grid');
+  }, []);
+
+  const handleMultiScreen = useCallback(() => {
+    setSelectedAgent(null);
+    setView('multiscreen');
+  }, []);
+
+  const getHistory = useCallback((agentId) => {
+    return historyRef.current[agentId] || [];
+  }, []);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-blue-500/30">
-      <nav className="border-b border-white/10 bg-white/5 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-500/20 p-2 rounded-lg border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
-              <Server className="w-5 h-5 text-blue-400" />
-            </div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-              Lab Monitor 17
-            </h1>
+    <div className="app">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="topbar-left">
+            <span className="brand">Lab Monitor</span>
+            <span className="brand-tag">SML-17</span>
           </div>
-          {selectedAgent && (
-            <button 
-              onClick={() => setSelectedAgent(null)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors border border-white/10 text-sm font-medium"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Kembali ke Dashboard
-            </button>
-          )}
+          <div className="topbar-right">
+            {view !== 'grid' && (
+              <button onClick={handleBack} className="back-btn">
+                <ChevronLeft size={16} />
+                Kembali
+              </button>
+            )}
+            {view === 'grid' && onlineCount > 0 && (
+              <button onClick={handleMultiScreen} className="back-btn">
+                <LayoutGrid size={14} />
+                Monitor Semua
+              </button>
+            )}
+          </div>
         </div>
-      </nav>
+      </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {selectedAgent ? (
-          <ScreenMonitor agentId={selectedAgent} />
+      <main className="main-content">
+        {view === 'detail' && selectedAgent ? (
+          <AgentDetail
+            agent={agents[selectedAgent]}
+            agentId={selectedAgent}
+            onBack={handleBack}
+          />
+        ) : view === 'multiscreen' ? (
+          <MultiScreenMonitor agents={onlineAgents} />
         ) : (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Daftar Komputer</h2>
-              <div className="flex items-center gap-4 text-sm">
-                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div> Online: {agentList.filter(a => a.status === 'online').length}</span>
-                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"></div> Offline: {agentList.filter(a => a.status === 'offline').length}</span>
+          <>
+            <div className="page-header">
+              <div>
+                <h2 className="page-title">Komputer Lab</h2>
+                <p className="page-subtitle">{agentList.length} unit terdaftar</p>
+              </div>
+              <div className="status-pills">
+                <span className="pill pill-online">
+                  <Circle size={8} fill="currentColor" />
+                  {onlineCount} aktif
+                </span>
+                <span className="pill pill-offline">
+                  <Circle size={8} fill="currentColor" />
+                  {offlineCount} mati
+                </span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {agentList.map((agent) => (
-                <AgentCard 
-                  key={agent.agent_id} 
-                  agent={agent} 
-                  onSelect={() => setSelectedAgent(agent.agent_id)} 
-                />
-              ))}
-              {agentList.length === 0 && (
-                <div className="col-span-full py-20 flex flex-col items-center justify-center text-slate-500 border border-dashed border-slate-700 rounded-2xl bg-white/5">
-                  <Monitor className="w-12 h-12 mb-4 opacity-50" />
-                  <p className="text-lg">Belum ada agent yang terhubung</p>
-                  <p className="text-sm mt-1">Jalankan agent.exe pada PC Lab untuk memulai monitoring</p>
-                </div>
-              )}
-            </div>
-          </div>
+            {agentList.length === 0 ? (
+              <div className="empty-state">
+                <Monitor size={32} strokeWidth={1.5} />
+                <p className="empty-title">Belum ada agent terhubung</p>
+                <p className="empty-desc">Jalankan agent.exe pada PC Lab untuk memulai monitoring.</p>
+              </div>
+            ) : (
+              <div className="agent-grid">
+                {agentList.map((agent) => (
+                  <AgentCard
+                    key={agent.agent_id}
+                    agent={agent}
+                    history={getHistory(agent.agent_id)}
+                    onSelect={() => handleSelectAgent(agent.agent_id)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
   );
 }
 
-function AgentCard({ agent, onSelect }) {
+/* ---- Agent Card ---- */
+function AgentCard({ agent, history, onSelect }) {
   const isOnline = agent.status === 'online';
-  
+  const appsCount = agent.apps ? agent.apps.length : 0;
+  const servicesCount = agent.processes ? agent.processes.length : 0;
+
   return (
-    <div 
-      className={`relative group overflow-hidden rounded-2xl border transition-all duration-300 ${
-        isOnline 
-          ? 'bg-white/[0.02] border-white/10 hover:border-blue-500/50 hover:bg-blue-500/5' 
-          : 'bg-slate-900/50 border-rose-500/20 opacity-75 grayscale-[0.5]'
-      }`}
-    >
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-6">
-          <div className="flex gap-4 items-center">
-            <div className={`p-3 rounded-xl ${isOnline ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-800 text-slate-500'}`}>
-              <Monitor className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">{agent.pc_name}</h3>
-              <p className="text-xs text-slate-400 font-mono">{agent.agent_id.split('-')[0]}</p>
-            </div>
-          </div>
-          <div className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
-            isOnline 
-              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-              : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-          }`}>
-            {isOnline ? 'Online' : 'Offline'}
+    <div className={`agent-card ${!isOnline ? 'agent-card--offline' : ''}`}>
+      <div className="agent-card-header">
+        <div className="agent-identity">
+          <span className={`agent-dot ${isOnline ? 'dot-on' : 'dot-off'}`} />
+          <div>
+            <h3 className="agent-name">{agent.pc_name}</h3>
+            <span className="agent-id">{agent.agent_id.split('-')[0]}</span>
           </div>
         </div>
-
-        <div className="space-y-4">
-          <MetricBar icon={Cpu} label="CPU" value={agent.cpu_percent} color="blue" />
-          <MetricBar icon={Activity} label="RAM" value={agent.ram_percent} color="violet" />
-          <MetricBar icon={HardDrive} label="Disk" value={agent.disk_percent} color="emerald" />
-        </div>
-
-        <button 
-          onClick={onSelect}
-          disabled={!isOnline}
-          className={`mt-6 w-full py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
-            isOnline 
-              ? 'bg-white/5 hover:bg-blue-500 text-white hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]' 
-              : 'bg-white/5 text-slate-500 cursor-not-allowed'
-          }`}
-        >
-          Lihat Layar
-        </button>
+        <span className={`status-tag ${isOnline ? 'tag-on' : 'tag-off'}`}>
+          {isOnline ? 'Online' : 'Offline'}
+        </span>
       </div>
-      
-      {isOnline && (
-        <div className="absolute -inset-px bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500 -z-10" />
+
+      <div className="metrics">
+        <Metric
+          icon={Cpu}
+          label="CPU"
+          value={agent.cpu_percent}
+          warn={agent.cpu_percent > 85}
+        />
+        <Metric
+          icon={Activity}
+          label="RAM"
+          value={agent.ram_percent}
+          warn={agent.ram_percent > 85}
+        />
+        <Metric
+          icon={HardDrive}
+          label="Disk"
+          value={agent.disk_percent}
+          warn={agent.disk_percent > 90}
+        />
+      </div>
+
+      {/* Sparkline chart */}
+      {history.length > 1 && (
+        <div className="sparkline-container">
+          <ResponsiveContainer width="100%" height={56}>
+            <AreaChart data={history} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+              <defs>
+                <linearGradient id={`cpuGrad-${agent.agent_id}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id={`ramGrad-${agent.agent_id}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#7c6fa0" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#7c6fa0" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area
+                type="monotone"
+                dataKey="cpu"
+                stroke="var(--accent)"
+                strokeWidth={1.5}
+                fill={`url(#cpuGrad-${agent.agent_id})`}
+                dot={false}
+                isAnimationActive={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="ram"
+                stroke="#7c6fa0"
+                strokeWidth={1.5}
+                fill={`url(#ramGrad-${agent.agent_id})`}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+          <div className="sparkline-legend">
+            <span className="sparkline-legend-item">
+              <span className="legend-swatch legend-cpu" />CPU
+            </span>
+            <span className="sparkline-legend-item">
+              <span className="legend-swatch legend-ram" />RAM
+            </span>
+          </div>
+        </div>
       )}
+
+      {/* Apps & Services count */}
+      <div className="card-counts">
+        <span className="card-count-item">
+          <Package size={12} />
+          {appsCount} apps
+        </span>
+        <span className="card-count-sep">·</span>
+        <span className="card-count-item">
+          <Cog size={12} />
+          {servicesCount} services
+        </span>
+      </div>
+
+      <button
+        onClick={onSelect}
+        disabled={!isOnline}
+        className="view-btn"
+      >
+        Detail
+        <ArrowUpRight size={14} />
+      </button>
     </div>
   );
 }
 
-function MetricBar({ icon: Icon, label, value, color }) {
-  const colorMap = {
-    blue: 'bg-blue-500 shadow-blue-500/50',
-    violet: 'bg-violet-500 shadow-violet-500/50',
-    emerald: 'bg-emerald-500 shadow-emerald-500/50',
-    rose: 'bg-rose-500 shadow-rose-500/50',
-  };
-  
-  const barColor = value > 90 ? colorMap.rose : colorMap[color];
-  
+/* ---- Metric Bar ---- */
+function Metric({ icon: Icon, label, value, warn }) {
+  const pct = value ? value.toFixed(1) : '0.0';
   return (
-    <div>
-      <div className="flex justify-between text-xs mb-1.5">
-        <span className="flex items-center gap-1.5 text-slate-300">
-          <Icon className="w-3.5 h-3.5 opacity-70" /> {label}
+    <div className="metric">
+      <div className="metric-head">
+        <span className="metric-label">
+          <Icon size={13} strokeWidth={2} />
+          {label}
         </span>
-        <span className="font-medium">{value ? value.toFixed(1) : 0}%</span>
+        <span className={`metric-value ${warn ? 'metric-warn' : ''}`}>{pct}%</span>
       </div>
-      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-        <div 
-          className={`h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(0,0,0,0.5)] ${barColor}`}
+      <div className="metric-track">
+        <div
+          className={`metric-fill ${warn ? 'fill-warn' : ''}`}
           style={{ width: `${value || 0}%` }}
         />
       </div>
@@ -169,17 +281,193 @@ function MetricBar({ icon: Icon, label, value, color }) {
   );
 }
 
+/* ---- Agent Detail View ---- */
+function AgentDetail({ agent, agentId }) {
+  const [activeTab, setActiveTab] = useState('screen');
+
+  if (!agent) {
+    return (
+      <div className="empty-state">
+        <Monitor size={32} strokeWidth={1.5} />
+        <p className="empty-title">Agent tidak ditemukan</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="detail-view">
+      <div className="detail-header">
+        <div>
+          <h2 className="detail-title">{agent.pc_name}</h2>
+          <span className="detail-agent-id">{agentId}</span>
+        </div>
+        <span className={`conn-tag ${agent.status === 'online' ? 'conn-live' : 'conn-wait'}`}>
+          {agent.status === 'online' && <span className="live-dot" />}
+          {agent.status === 'online' ? 'Online' : 'Offline'}
+        </span>
+      </div>
+
+      <div className="detail-tabs">
+        <button
+          className={`detail-tab ${activeTab === 'screen' ? 'detail-tab--active' : ''}`}
+          onClick={() => setActiveTab('screen')}
+        >
+          <Monitor size={14} />
+          Layar
+        </button>
+        <button
+          className={`detail-tab ${activeTab === 'apps' ? 'detail-tab--active' : ''}`}
+          onClick={() => setActiveTab('apps')}
+        >
+          <Package size={14} />
+          Aplikasi ({agent.apps ? agent.apps.length : 0})
+        </button>
+        <button
+          className={`detail-tab ${activeTab === 'services' ? 'detail-tab--active' : ''}`}
+          onClick={() => setActiveTab('services')}
+        >
+          <Cog size={14} />
+          Proses ({agent.processes ? agent.processes.length : 0})
+        </button>
+      </div>
+
+      <div className="detail-content">
+        {activeTab === 'screen' && (
+          <ScreenMonitor agentId={agentId} />
+        )}
+        {activeTab === 'apps' && (
+          <AppsTable apps={agent.apps || []} />
+        )}
+        {activeTab === 'services' && (
+          <ServicesTable services={agent.processes || []} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Apps Table ---- */
+function AppsTable({ apps }) {
+  const [filter, setFilter] = useState('');
+  const filtered = apps.filter(app => {
+    const name = (app.name || app).toString().toLowerCase();
+    return name.includes(filter.toLowerCase());
+  });
+
+  return (
+    <div className="data-table-wrap">
+      <div className="table-toolbar">
+        <input
+          type="text"
+          className="table-search"
+          placeholder="Cari aplikasi..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        {filter && (
+          <button className="table-clear" onClick={() => setFilter('')}>
+            <X size={14} />
+          </button>
+        )}
+        <span className="table-count">{filtered.length} dari {apps.length}</span>
+      </div>
+      <div className="data-table-scroll">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nama Aplikasi</th>
+              <th>Versi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={3} className="table-empty">Tidak ada data</td></tr>
+            ) : (
+              filtered.map((app, i) => (
+                <tr key={i}>
+                  <td className="table-num">{i + 1}</td>
+                  <td>{typeof app === 'string' ? app : (app.name || '—')}</td>
+                  <td className="table-dim">{typeof app === 'string' ? '—' : (app.version || '—')}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Services / Processes Table ---- */
+function ServicesTable({ services }) {
+  const [filter, setFilter] = useState('');
+  const filtered = services.filter(svc => {
+    const name = (svc.name || svc).toString().toLowerCase();
+    return name.includes(filter.toLowerCase());
+  });
+
+  return (
+    <div className="data-table-wrap">
+      <div className="table-toolbar">
+        <input
+          type="text"
+          className="table-search"
+          placeholder="Cari proses..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        {filter && (
+          <button className="table-clear" onClick={() => setFilter('')}>
+            <X size={14} />
+          </button>
+        )}
+        <span className="table-count">{filtered.length} dari {services.length}</span>
+      </div>
+      <div className="data-table-scroll">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>PID</th>
+              <th>Nama Proses</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={3} className="table-empty">Tidak ada data</td></tr>
+            ) : (
+              filtered.map((svc, i) => (
+                <tr key={i}>
+                  <td className="table-mono">{typeof svc === 'string' ? '—' : (svc.pid || '—')}</td>
+                  <td>{typeof svc === 'string' ? svc : (svc.name || '—')}</td>
+                  <td>
+                    <span className={`process-status ${(svc.status || '') === 'running' ? 'ps-running' : 'ps-other'}`}>
+                      {typeof svc === 'string' ? '—' : (svc.status || '—')}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Screen Monitor ---- */
 function ScreenMonitor({ agentId }) {
   const videoRef = useRef(null);
   const pcRef = useRef(null);
-  const [status, setStatus] = useState('Connecting...');
+  const [status, setStatus] = useState('Menghubungkan...');
 
   useEffect(() => {
     const pc = new RTCPeerConnection();
     pcRef.current = pc;
 
     pc.ontrack = (event) => {
-      setStatus('Connected (Live)');
+      setStatus('Terhubung');
       if (videoRef.current) {
         if (event.streams && event.streams.length > 0) {
           videoRef.current.srcObject = event.streams[0];
@@ -191,7 +479,7 @@ function ScreenMonitor({ agentId }) {
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-        setStatus('Disconnected');
+        setStatus('Terputus');
       }
     };
 
@@ -199,12 +487,12 @@ function ScreenMonitor({ agentId }) {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = async () => {
-      setStatus('Negotiating...');
+      setStatus('Negosiasi...');
       pc.addTransceiver('video', { direction: 'recvonly' });
-      
+
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      
+
       ws.send(JSON.stringify({
         type: pc.localDescription.type,
         sdp: pc.localDescription.sdp
@@ -235,38 +523,163 @@ function ScreenMonitor({ agentId }) {
     };
   }, [agentId]);
 
+  const isLive = status === 'Terhubung';
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between bg-slate-800/50 p-6 rounded-2xl border border-white/5">
+    <div className="screen-monitor">
+      <div className="screen-header">
         <div>
-          <h2 className="text-2xl font-bold">Screen Monitor</h2>
-          <p className="text-slate-400 mt-1">Agent ID: {agentId}</p>
+          <h2 className="screen-title">Screen Monitor</h2>
+          <p className="screen-agent-id">{agentId}</p>
         </div>
-        <div className={`px-4 py-1.5 rounded-full text-sm font-medium border flex items-center gap-2 ${
-          status.includes('Live') 
-            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-            : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-        }`}>
-          {status.includes('Live') && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+        <span className={`conn-tag ${isLive ? 'conn-live' : 'conn-wait'}`}>
+          {isLive && <span className="live-dot" />}
           {status}
-        </div>
+        </span>
       </div>
 
-      <div className="aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative group">
-        <video 
-          ref={videoRef} 
-          autoPlay 
+      <div className="screen-viewport">
+        <video
+          ref={videoRef}
+          autoPlay
           playsInline
           muted
-          className="w-full h-full object-contain"
+          className="screen-video"
         />
-        {status !== 'Connected (Live)' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 bg-slate-900/80 backdrop-blur-sm">
-            <Monitor className="w-16 h-16 mb-4 animate-pulse opacity-20" />
-            <p className="text-xl font-medium text-slate-400">{status}</p>
-            <p className="text-sm mt-2 opacity-70">Membuat koneksi WebRTC (aiortc)...</p>
+        {!isLive && (
+          <div className="screen-placeholder">
+            <Monitor size={28} strokeWidth={1.5} />
+            <p>{status}</p>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Mini Screen Monitor (for multi-screen grid) ---- */
+function MiniScreenMonitor({ agentId, pcName }) {
+  const videoRef = useRef(null);
+  const pcRef = useRef(null);
+  const [status, setStatus] = useState('Menghubungkan...');
+
+  useEffect(() => {
+    const pc = new RTCPeerConnection();
+    pcRef.current = pc;
+
+    pc.ontrack = (event) => {
+      setStatus('Terhubung');
+      if (videoRef.current) {
+        if (event.streams && event.streams.length > 0) {
+          videoRef.current.srcObject = event.streams[0];
+        } else {
+          videoRef.current.srcObject = new MediaStream([event.track]);
+        }
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+        setStatus('Terputus');
+      }
+    };
+
+    const wsUrl = API_URL.replace('http', 'ws') + `/screen/ws/dashboard/${agentId}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = async () => {
+      setStatus('Negosiasi...');
+      pc.addTransceiver('video', { direction: 'recvonly' });
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      ws.send(JSON.stringify({
+        type: pc.localDescription.type,
+        sdp: pc.localDescription.sdp
+      }));
+    };
+
+    ws.onmessage = async (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'answer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(data));
+      } else if (data.type === 'candidate') {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        ws.send(JSON.stringify({
+          type: 'candidate',
+          candidate: event.candidate
+        }));
+      }
+    };
+
+    return () => {
+      pc.close();
+      ws.close();
+    };
+  }, [agentId]);
+
+  const isLive = status === 'Terhubung';
+
+  return (
+    <div className="mini-screen">
+      <div className="mini-screen-label">
+        <span className={`mini-dot ${isLive ? 'dot-on' : 'dot-off'}`} />
+        <span className="mini-name">{pcName}</span>
+        <span className={`mini-status ${isLive ? 'mini-live' : ''}`}>{status}</span>
+      </div>
+      <div className="mini-viewport">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="screen-video"
+        />
+        {!isLive && (
+          <div className="screen-placeholder">
+            <Monitor size={20} strokeWidth={1.5} />
+            <p>{status}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Multi-Screen Monitor Page ---- */
+function MultiScreenMonitor({ agents }) {
+  if (agents.length === 0) {
+    return (
+      <div className="empty-state">
+        <Monitor size={32} strokeWidth={1.5} />
+        <p className="empty-title">Tidak ada agent online</p>
+        <p className="empty-desc">Semua komputer sedang offline.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">Monitor Semua Layar</h2>
+          <p className="page-subtitle">{agents.length} komputer aktif</p>
+        </div>
+      </div>
+      <div className="multi-screen-grid">
+        {agents.map((agent) => (
+          <MiniScreenMonitor
+            key={agent.agent_id}
+            agentId={agent.agent_id}
+            pcName={agent.pc_name}
+          />
+        ))}
       </div>
     </div>
   );
