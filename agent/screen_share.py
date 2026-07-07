@@ -7,6 +7,7 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 import mss
 import numpy as np
 import av
+import fractions
 import traceback
 
 # Fix for PyInstaller: ensure av/aiortc can find codec DLLs in temp directory
@@ -67,7 +68,7 @@ def test_video_pipeline():
         codec.width = frame.width
         codec.height = frame.height
         codec.pix_fmt = 'yuv420p'
-        codec.time_base = av.Fraction(1, 30)
+        codec.time_base = fractions.Fraction(1, 30)
         codec.open()
         packets = codec.encode(frame)
         print(f"[ScreenShare]   VP8 encode OK: {len(packets)} packets")
