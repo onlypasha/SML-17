@@ -252,10 +252,11 @@ async def run_screen_share(server_url: str, agent_id: str):
                             if cand_str.startswith("candidate:"):
                                 cand_str = cand_str[10:]
                             c = candidate_from_sdp(cand_str)
-                            c.sdpMid = cand_dict.get("sdpMid")
-                            c.sdpMLineIndex = cand_dict.get("sdpMLineIndex")
+                            c.sdpMid = str(cand_dict.get("sdpMid", "0"))
+                            c.sdpMLineIndex = int(cand_dict.get("sdpMLineIndex", 0))
                             if pc:
                                 await pc.addIceCandidate(c)
+                                print(f"[ScreenShare] Added remote ICE candidate: {c.ip}:{c.port}")
                         except Exception as e:
                             print(f"[ScreenShare] Error adding candidate: {e}")
 
