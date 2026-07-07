@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'agent/**'        # hanya trigger kalau ada perubahan di folder agent
+      - 'requirements.txt'
   workflow_dispatch:      # bisa trigger manual dari GitHub
 
 jobs:
@@ -27,12 +28,35 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      # 4. Build .exe
+      # 4. Verify native libs are installed correctly
+      - name: Verify native libraries
+        run: |
+          python -c "import av; print(f'PyAV version: {av.__version__}')"
+          python -c "import aiortc; print(f'aiortc version: {aiortc.__version__}')"
+          python -c "import mss; print(f'mss version: {mss.__version__}')"
+          python -c "import numpy; print(f'numpy version: {numpy.__version__}')"
+
+      # 5. Build .exe with full native lib collection
       - name: Build agent.exe
         run: |
           pyinstaller agent/agent.spec
 
-      # 5. Upload hasil .exe sebagai artifact
+      # 6. Verify built exe contains needed DLLs
+      - name: Verify bundled DLLs
+        shell: powershell
+        run: |
+          Write-Host "=== Built exe size ==="
+          Get-Item dist/agent.exe | Select-Object Length
+          Write-Host ""
+          Write-Host "=== Checking for critical DLLs in build ==="
+          $buildDir = "build/agent"
+          if (Test-Path $buildDir) {
+            $dlls = Get-ChildItem -Path $buildDir -Recurse -Filter "*.dll" | Select-Object Name
+            Write-Host "Found $($dlls.Count) DLL files"
+            $dlls | ForEach-Object { Write-Host "  - $($_.Name)" }
+          }
+
+      # 7. Upload hasil .exe sebagai artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
