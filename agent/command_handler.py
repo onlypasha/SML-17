@@ -46,6 +46,8 @@ def execute_command(command: str, payload: dict) -> dict:
             return uninstall_app(payload.get("app_name", ""))
         elif command == "kill_process":
             return kill_process(payload.get("pid", 0))
+        elif command == "download_file":
+            return download_file(payload.get("filename", ""), payload.get("url", ""))
         else:
             return {
                 "command": command,
@@ -58,6 +60,30 @@ def execute_command(command: str, payload: dict) -> dict:
             "success": False,
             "message": f"Error executing command: {str(e)}"
         }
+
+
+def download_file(filename: str, url: str) -> dict:
+    """Download a file from the server and save it to the public desktop."""
+    if not filename or not url:
+        return {"command": "download_file", "success": False, "message": "Missing filename or url."}
+    
+    import urllib.request
+    import os
+    
+    # Use Public Desktop so all users can see it
+    if platform.system() == "Windows":
+        desktop = os.environ.get("PUBLIC", "C:\\Users\\Public") + "\\Desktop"
+    else:
+        desktop = os.path.expanduser("~/Desktop")
+        
+    os.makedirs(desktop, exist_ok=True)
+    dest_path = os.path.join(desktop, filename)
+    
+    try:
+        urllib.request.urlretrieve(url, dest_path)
+        return {"command": "download_file", "success": True, "message": f"File '{filename}' downloaded to Desktop."}
+    except Exception as e:
+        return {"command": "download_file", "success": False, "message": str(e)}
 
 
 def stop_service(service_name: str) -> dict:

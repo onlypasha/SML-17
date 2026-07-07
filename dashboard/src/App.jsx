@@ -3,7 +3,8 @@ import axios from 'axios';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import {
   Monitor, Cpu, HardDrive, Activity, ChevronLeft, Circle,
-  ArrowUpRight, LayoutGrid, Package, Cog, X
+  ArrowUpRight, LayoutGrid, Package, Cog, X, Trash2, XCircle,
+  UploadCloud, File as FileIcon, Send, RefreshCw
 } from 'lucide-react';
 
 const API_URL = 'http://localhost:8000';
@@ -88,6 +89,12 @@ function App() {
               >
                 Multi-Screen
               </button>
+              <button 
+                className={`nav-btn ${view === 'filemanager' ? 'active' : ''}`}
+                onClick={() => { setSelectedAgent(null); setView('filemanager'); }}
+              >
+                File Manager
+              </button>
             </div>
           </div>
           <div className="topbar-right">
@@ -110,6 +117,8 @@ function App() {
           />
         ) : view === 'multiscreen' ? (
           <MultiScreenMonitor agents={onlineAgents} />
+        ) : view === 'filemanager' ? (
+          <FileManager agents={onlineAgents} />
         ) : (
           <>
             <div className="page-header">
@@ -344,10 +353,10 @@ function AgentDetail({ agent, agentId }) {
           <ScreenMonitor agentId={agentId} />
         )}
         {activeTab === 'apps' && (
-          <AppsTable apps={agent.apps || []} />
+          <AppsTable apps={agent.apps || []} agentId={agentId} />
         )}
         {activeTab === 'services' && (
-          <ServicesTable services={agent.processes || []} />
+          <ServicesTable services={agent.processes || []} agentId={agentId} />
         )}
       </div>
     </div>
@@ -355,12 +364,26 @@ function AgentDetail({ agent, agentId }) {
 }
 
 /* ---- Apps Table ---- */
-function AppsTable({ apps }) {
+/* ---- Apps Table ---- */
+function AppsTable({ apps, agentId }) {
   const [filter, setFilter] = useState('');
   const filtered = apps.filter(app => {
     const name = (app.name || app).toString().toLowerCase();
     return name.includes(filter.toLowerCase());
   });
+
+  const handleUninstall = async (appName) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus aplikasi "${appName}" di komputer ini?\n\nPerhatian: Proses ini berjalan di latar belakang dan tidak dapat dibatalkan.`)) return;
+    try {
+      await axios.post(`${API_URL}/commands/uninstall-app`, {
+        agent_id: agentId,
+        payload: { app_name: appName }
+      });
+      alert(`Perintah uninstall dikirim untuk ${appName}.`);
+    } catch (e) {
+      alert("Gagal mengirim perintah: " + e.message);
+    }
+  };
 
   return (
     <div className="data-table-wrap">
@@ -386,19 +409,32 @@ function AppsTable({ apps }) {
               <th>#</th>
               <th>Nama Aplikasi</th>
               <th>Versi</th>
+              <th style={{width: '60px'}}>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={3} className="table-empty">Tidak ada data</td></tr>
+              <tr><td colSpan={4} className="table-empty">Tidak ada data</td></tr>
             ) : (
-              filtered.map((app, i) => (
-                <tr key={i}>
-                  <td className="table-num">{i + 1}</td>
-                  <td>{typeof app === 'string' ? app : (app.name || '—')}</td>
-                  <td className="table-dim">{typeof app === 'string' ? '—' : (app.version || '—')}</td>
-                </tr>
-              ))
+              filtered.map((app, i) => {
+                const appName = typeof app === 'string' ? app : (app.name || '—');
+                return (
+                  <tr key={i}>
+                    <td className="table-num">{i + 1}</td>
+                    <td>{appName}</td>
+                    <td className="table-dim">{typeof app === 'string' ? '—' : (app.version || '—')}</td>
+                    <td>
+                      <button 
+                        className="action-btn btn-danger" 
+                        title="Uninstall"
+                        onClick={() => handleUninstall(appName)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -408,12 +444,26 @@ function AppsTable({ apps }) {
 }
 
 /* ---- Services / Processes Table ---- */
-function ServicesTable({ services }) {
+/* ---- Services / Processes Table ---- */
+function ServicesTable({ services, agentId }) {
   const [filter, setFilter] = useState('');
   const filtered = services.filter(svc => {
     const name = (svc.name || svc).toString().toLowerCase();
     return name.includes(filter.toLowerCase());
   });
+
+  const handleKill = async (pid, name) => {
+    if (!confirm(`Hentikan proses ${name} (PID: ${pid})?`)) return;
+    try {
+      await axios.post(`${API_URL}/commands/kill-process`, {
+        agent_id: agentId,
+        payload: { pid: pid }
+      });
+      alert(`Perintah stop dikirim untuk proses ${name}.`);
+    } catch (e) {
+      alert("Gagal mengirim perintah: " + e.message);
+    }
+  };
 
   return (
     <div className="data-table-wrap">
@@ -439,23 +489,39 @@ function ServicesTable({ services }) {
               <th>PID</th>
               <th>Nama Proses</th>
               <th>Status</th>
+              <th style={{width: '60px'}}>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={3} className="table-empty">Tidak ada data</td></tr>
+              <tr><td colSpan={4} className="table-empty">Tidak ada data</td></tr>
             ) : (
-              filtered.map((svc, i) => (
-                <tr key={i}>
-                  <td className="table-mono">{typeof svc === 'string' ? '—' : (svc.pid || '—')}</td>
-                  <td>{typeof svc === 'string' ? svc : (svc.name || '—')}</td>
-                  <td>
-                    <span className={`process-status ${(svc.status || '') === 'running' ? 'ps-running' : 'ps-other'}`}>
-                      {typeof svc === 'string' ? '—' : (svc.status || '—')}
-                    </span>
-                  </td>
-                </tr>
-              ))
+              filtered.map((svc, i) => {
+                const pid = typeof svc === 'string' ? null : svc.pid;
+                const name = typeof svc === 'string' ? svc : (svc.name || '—');
+                return (
+                  <tr key={i}>
+                    <td className="table-mono">{pid || '—'}</td>
+                    <td>{name}</td>
+                    <td>
+                      <span className={`process-status ${(svc.status || '') === 'running' ? 'ps-running' : 'ps-other'}`}>
+                        {typeof svc === 'string' ? '—' : (svc.status || '—')}
+                      </span>
+                    </td>
+                    <td>
+                      {pid && (
+                        <button 
+                          className="action-btn btn-danger" 
+                          title="Hentikan Proses"
+                          onClick={() => handleKill(pid, name)}
+                        >
+                          <XCircle size={14} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -712,6 +778,200 @@ function MultiScreenMonitor({ agents }) {
             pcName={agent.pc_name}
           />
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---- File Manager Page ---- */
+function FileManager({ agents }) {
+  const [files, setFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [selectedAgents, setSelectedAgents] = useState({});
+  const fileInputRef = useRef(null);
+
+  const fetchFiles = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/files/`);
+      setFiles(res.data.files);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchFiles();
+  }, []);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploading(true);
+    try {
+      await axios.post(`${API_URL}/files/upload`, formData);
+      fetchFiles();
+      alert(`File ${file.name} berhasil diunggah.`);
+    } catch (err) {
+      alert("Gagal mengunggah file: " + err.message);
+    } finally {
+      setUploading(false);
+      e.target.value = ''; // Reset input
+    }
+  };
+
+  const handleDelete = async (filename) => {
+    if (!confirm(`Hapus file ${filename} dari server?`)) return;
+    try {
+      await axios.delete(`${API_URL}/files/${encodeURIComponent(filename)}`);
+      fetchFiles();
+    } catch (e) {
+      alert("Gagal menghapus file: " + e.message);
+    }
+  };
+
+  const handleSendToAgents = async (filename) => {
+    const targetAgents = Object.keys(selectedAgents).filter(id => selectedAgents[id]);
+    
+    if (targetAgents.length === 0) {
+      alert("Pilih minimal satu agent untuk dikirimi file.");
+      return;
+    }
+
+    const url = `${window.location.protocol}//${window.location.hostname}:8000/files/download/${encodeURIComponent(filename)}`;
+    let successCount = 0;
+
+    for (const agentId of targetAgents) {
+      try {
+        await axios.post(`${API_URL}/commands/send`, {
+          agent_id: agentId,
+          command: "download_file",
+          payload: { filename, url }
+        });
+        successCount++;
+      } catch (e) {
+        console.error(`Gagal kirim ke ${agentId}:`, e);
+      }
+    }
+
+    alert(`Perintah download dikirim ke ${successCount} agent.`);
+  };
+
+  const toggleSelectAll = (e) => {
+    const checked = e.target.checked;
+    const newSelected = {};
+    agents.forEach(a => newSelected[a.agent_id] = checked);
+    setSelectedAgents(newSelected);
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">File Manager</h2>
+          <p className="page-subtitle">Kelola dan distribusikan file ke komputer lab.</p>
+        </div>
+        <div className="status-pills">
+          <button 
+            className="action-btn"
+            style={{ width: 'auto', padding: '0 12px', background: 'var(--accent)', color: 'white' }}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <UploadCloud size={16} style={{marginRight: '6px'}} />
+            {uploading ? 'Mengunggah...' : 'Upload File Baru'}
+          </button>
+          <input 
+            type="file" 
+            style={{display: 'none'}} 
+            ref={fileInputRef}
+            onChange={handleUpload}
+          />
+        </div>
+      </div>
+
+      <div className="multi-screen-grid" style={{gridTemplateColumns: '1fr', gap: '20px'}}>
+        <div className="data-table-wrap">
+          <div className="table-toolbar">
+            <span style={{fontWeight: 600, fontSize: '14px', color: 'var(--text)'}}>Target Distribusi File</span>
+          </div>
+          <div style={{padding: '12px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border-light)'}}>
+            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px'}}>
+              <input type="checkbox" onChange={toggleSelectAll} />
+              <strong>Pilih Semua Agent Aktif ({agents.length})</strong>
+            </label>
+          </div>
+          <div style={{padding: '12px 16px', display: 'flex', gap: '12px', flexWrap: 'wrap'}}>
+            {agents.length === 0 && <span className="table-dim">Tidak ada agent aktif.</span>}
+            {agents.map(a => (
+              <label key={a.agent_id} style={{display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', background: 'var(--bg-muted)', padding: '4px 10px', borderRadius: '20px'}}>
+                <input 
+                  type="checkbox" 
+                  checked={!!selectedAgents[a.agent_id]}
+                  onChange={(e) => setSelectedAgents({...selectedAgents, [a.agent_id]: e.target.checked})}
+                />
+                {a.pc_name}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="data-table-wrap">
+          <div className="table-toolbar" style={{justifyContent: 'space-between'}}>
+            <span style={{fontWeight: 600, fontSize: '14px', color: 'var(--text)'}}>File di Server</span>
+            <button className="table-clear" onClick={fetchFiles} title="Refresh">
+              <RefreshCw size={14} />
+            </button>
+          </div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Nama File</th>
+                <th>Ukuran</th>
+                <th style={{width: '120px'}}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {files.length === 0 ? (
+                <tr><td colSpan={3} className="table-empty">Belum ada file di server.</td></tr>
+              ) : (
+                files.map((file, i) => (
+                  <tr key={i}>
+                    <td>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <FileIcon size={16} className="table-dim" />
+                        {file.name}
+                      </div>
+                    </td>
+                    <td className="table-dim">{(file.size / 1024).toFixed(1)} KB</td>
+                    <td>
+                      <div style={{display: 'flex', gap: '4px'}}>
+                        <button 
+                          className="action-btn" 
+                          title="Kirim ke Agent Terpilih"
+                          style={{color: 'var(--accent)'}}
+                          onClick={() => handleSendToAgents(file.name)}
+                        >
+                          <Send size={16} />
+                        </button>
+                        <button 
+                          className="action-btn btn-danger" 
+                          title="Hapus File"
+                          onClick={() => handleDelete(file.name)}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

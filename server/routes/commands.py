@@ -97,3 +97,14 @@ async def uninstall_app(request: CommandRequest):
     }
     result = await command_manager.send_command(request.agent_id, command_data)
     return result
+
+
+@router.post("/kill-process")
+async def kill_process(request: CommandRequest):
+    """Convenience endpoint to kill a process on an agent."""
+    command_data = {
+        "command": "kill_process",
+        "payload": request.payload,
+    }
+    result = await command_manager.send_command(request.agent_id, command_data)
+    return result

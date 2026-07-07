@@ -776,6 +776,30 @@ body {
   color: var(--text-dim);
 }
 
+/* ---- Action Buttons ---- */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-danger {
+  color: var(--red);
+  opacity: 0.7;
+}
+
+.btn-danger:hover {
+  opacity: 1;
+  background: var(--red-bg);
+}
+
 /* ---- Process Status Badge ---- */
 .process-status {
   font-size: 11px;
