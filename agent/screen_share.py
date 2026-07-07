@@ -193,6 +193,24 @@ async def run_screen_share(server_url: str, agent_id: str):
                         track = ScreenCaptureTrack()
                         pc.addTrack(track)
 
+                        @pc.on("icecandidate")
+                        async def on_icecandidate(candidate):
+                            if candidate:
+                                try:
+                                    from aiortc.sdp import candidate_to_sdp
+                                    cand_str = candidate_to_sdp(candidate)
+                                    msg = {
+                                        "type": "candidate",
+                                        "candidate": {
+                                            "candidate": "candidate:" + cand_str,
+                                            "sdpMid": candidate.sdpMid,
+                                            "sdpMLineIndex": candidate.sdpMLineIndex,
+                                        }
+                                    }
+                                    await websocket.send(json.dumps(msg))
+                                except Exception as e:
+                                    print(f"[ScreenShare] Error sending candidate: {e}")
+
                         @pc.on("connectionstatechange")
                         async def on_connectionstatechange():
                             print(f"[ScreenShare] WebRTC state: {pc.connectionState}")
@@ -203,20 +221,30 @@ async def run_screen_share(server_url: str, agent_id: str):
                         answer = await pc.createAnswer()
                         await pc.setLocalDescription(answer)
 
-                        # Wait for ICE gathering to complete before sending SDP
-                        while True:
-                            if pc.iceGatheringState == "complete":
-                                break
-                            await asyncio.sleep(0.1)
-
                         await websocket.send(json.dumps({
                             "type": pc.localDescription.type,
                             "sdp": pc.localDescription.sdp
                         }))
-                        print("[ScreenShare] Answer sent with all candidates")
+                        print("[ScreenShare] Answer sent")
 
                     elif data["type"] == "candidate":
-                        pass
+                        from aiortc import RTCIceCandidate
+                        cand_dict = data["candidate"]
+                        cand_str = cand_dict["candidate"]
+                        # candidate string is like "candidate:4234997325 1 udp 2043278322 192.168.1.5 5004 typ host"
+                        # aiortc needs it parsed or passed directly. In newer aiortc:
+                        try:
+                            # Use aiortc.sdp candidate_from_sdp
+                            from aiortc.sdp import candidate_from_sdp
+                            if cand_str.startswith("candidate:"):
+                                cand_str = cand_str[10:]
+                            c = candidate_from_sdp(cand_str)
+                            c.sdpMid = cand_dict.get("sdpMid")
+                            c.sdpMLineIndex = cand_dict.get("sdpMLineIndex")
+                            if pc:
+                                await pc.addIceCandidate(c)
+                        except Exception as e:
+                            print(f"[ScreenShare] Error adding candidate: {e}")
 
         except Exception as e:
             print(f"[ScreenShare] Error: {e}")

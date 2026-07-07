@@ -570,15 +570,6 @@ function ScreenMonitor({ agentId }) {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      // Wait for ICE gathering to complete before sending SDP
-      if (pc.iceGatheringState !== 'complete') {
-        await new Promise((resolve) => {
-          pc.onicegatheringstatechange = () => {
-            if (pc.iceGatheringState === 'complete') resolve();
-          };
-        });
-      }
-
       ws.send(JSON.stringify({
         type: pc.localDescription.type,
         sdp: pc.localDescription.sdp
@@ -682,15 +673,6 @@ function MiniScreenMonitor({ agentId, pcName }) {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-
-      // Wait for ICE gathering to complete before sending SDP
-      if (pc.iceGatheringState !== 'complete') {
-        await new Promise((resolve) => {
-          pc.onicegatheringstatechange = () => {
-            if (pc.iceGatheringState === 'complete') resolve();
-          };
-        });
-      }
 
       ws.send(JSON.stringify({
         type: pc.localDescription.type,

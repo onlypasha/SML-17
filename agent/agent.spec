@@ -19,6 +19,17 @@ av_dynlibs = collect_dynamic_libs('av')
 aiortc_dynlibs = collect_dynamic_libs('aiortc')
 
 all_binaries = av_binaries + aiortc_binaries + mss_binaries + av_dynlibs + aiortc_dynlibs
+
+# Explicitly search for av.libs (where PyAV stores its ffmpeg DLLs on Windows)
+import site
+import os
+for sp in site.getsitepackages():
+    av_libs_dir = os.path.join(sp, 'av.libs')
+    if os.path.isdir(av_libs_dir):
+        for f in os.listdir(av_libs_dir):
+            if f.endswith('.dll'):
+                all_binaries.append((os.path.join(av_libs_dir, f), '.'))
+
 all_datas = av_datas + aiortc_datas + mss_datas
 all_hiddenimports = av_hiddenimports + aiortc_hiddenimports + mss_hiddenimports
 
