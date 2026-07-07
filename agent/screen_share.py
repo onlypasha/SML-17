@@ -17,8 +17,10 @@ if getattr(sys, 'frozen', False):
     print(f"[ScreenShare] PyInstaller bundle dir: {bundle_dir}")
 
 # Max resolution for screen capture (resize if larger)
-MAX_WIDTH = 1280
-MAX_HEIGHT = 720
+# We use 854x480 (480p) to prevent massive UDP packet fragmentation
+# which causes black screens on remote networks.
+MAX_WIDTH = 854
+MAX_HEIGHT = 480
 
 
 def test_video_pipeline():
@@ -143,6 +145,9 @@ class ScreenCaptureTrack(VideoStreamTrack):
             self._frame_count += 1
             if self._frame_count <= 3 or self._frame_count % 100 == 0:
                 print(f"[ScreenCapture] Frame #{self._frame_count} OK ({frame.width}x{frame.height})")
+
+            # Limit framerate to ~10 FPS to prevent network congestion
+            await asyncio.sleep(0.1)
 
             return frame
 
