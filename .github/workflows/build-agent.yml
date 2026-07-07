@@ -1,0 +1,42 @@
+name: Build Agent
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'agent/**'        # hanya trigger kalau ada perubahan di folder agent
+  workflow_dispatch:      # bisa trigger manual dari GitHub
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      # 1. Checkout kode
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller psutil requests
+
+      # 4. Build .exe
+      - name: Build agent.exe
+        run: |
+          cd agent
+          pyinstaller --onefile --noconsole main.py --name agent
+
+      # 5. Upload hasil .exe sebagai artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-windows
+          path: agent/dist/agent.exe
+          retention-days: 7    # simpan 7 hari
