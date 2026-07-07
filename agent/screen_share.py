@@ -216,13 +216,20 @@ async def run_screen_share(server_url: str, agent_id: str):
                                 await pc.setLocalDescription(answer)
 
                                 print("[ScreenShare] Gathering ICE candidates...")
-                                timeout = 0
-                                while pc.iceGatheringState != "complete" and timeout < 50:
+                                
+                                # Wait for aiortc to finish gathering ICE candidates
+                                # In aiortc, setLocalDescription starts the gathering process.
+                                # Instead of a blocking while loop that might freeze the event loop,
+                                # we wait up to 5 seconds. In aiortc 1.0+, ice gathering completes
+                                # automatically, but we just need to yield to the event loop.
+                                for _ in range(50):
+                                    if pc.iceGatheringState == "complete":
+                                        break
                                     await asyncio.sleep(0.1)
-                                    timeout += 1
                                 
                                 print(f"[ScreenShare] ICE gathering finished (state: {pc.iceGatheringState})")
 
+                                # Make sure to flush the SDP *after* yielding so candidates are included
                                 await ws.send(json.dumps({
                                     "type": pc.localDescription.type,
                                     "sdp": pc.localDescription.sdp
