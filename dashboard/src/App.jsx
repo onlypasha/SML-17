@@ -75,18 +75,26 @@ function App() {
           <div className="topbar-left">
             <span className="brand">Lab Monitor</span>
             <span className="brand-tag">SML-17</span>
+            <div className="topbar-nav">
+              <button 
+                className={`nav-btn ${view === 'grid' || view === 'detail' ? 'active' : ''}`}
+                onClick={() => { setSelectedAgent(null); setView('grid'); }}
+              >
+                Dashboard
+              </button>
+              <button 
+                className={`nav-btn ${view === 'multiscreen' ? 'active' : ''}`}
+                onClick={handleMultiScreen}
+              >
+                Multi-Screen
+              </button>
+            </div>
           </div>
           <div className="topbar-right">
-            {view !== 'grid' && (
+            {view === 'detail' && (
               <button onClick={handleBack} className="back-btn">
                 <ChevronLeft size={16} />
                 Kembali
-              </button>
-            )}
-            {view === 'grid' && onlineCount > 0 && (
-              <button onClick={handleMultiScreen} className="back-btn">
-                <LayoutGrid size={14} />
-                Monitor Semua
               </button>
             )}
           </div>

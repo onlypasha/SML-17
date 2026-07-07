@@ -76,6 +76,36 @@ body {
   gap: 8px;
 }
 
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 16px;
+}
+
+.nav-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-btn:hover {
+  color: var(--text);
+  background: var(--bg-muted);
+}
+
+.nav-btn.active {
+  color: var(--accent);
+  background: var(--bg-muted);
+  font-weight: 600;
+}
+
 .topbar-right {
   display: flex;
   align-items: center;
