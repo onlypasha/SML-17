@@ -9,7 +9,22 @@ from agent.config import load_config
 from agent.gui import run_gui
 from agent.agent import run_agent
 
+def check_single_instance():
+    if sys.platform == "win32":
+        import ctypes
+        mutex_name = "Global\\SML17_Agent_Mutex"
+        kernel32 = ctypes.windll.kernel32
+        mutex = kernel32.CreateMutexW(None, False, mutex_name)
+        if kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+            print("Another instance of the agent is already running. Exiting.")
+            sys.exit(0)
+        # Keep a reference to the mutex so it doesn't get garbage collected
+        return mutex
+    return None
+
 def main():
+    mutex = check_single_instance()
+    
     # Redirect stdout/stderr to a log file when running in background mode
     if getattr(sys, 'frozen', False):
         log_path = os.path.join(os.environ.get('PUBLIC', 'C:\\Users\\Public'), 'sml17_agent.log')

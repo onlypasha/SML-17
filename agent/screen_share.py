@@ -192,7 +192,11 @@ async def run_screen_share(server_url: str, agent_id: str):
                         print("[ScreenShare] Received offer")
                         from aiortc import RTCConfiguration, RTCIceServer
                         config = RTCConfiguration(
-                            iceServers=[RTCIceServer(urls=["stun:stun.l.google.com:19302"])]
+                            iceServers=[
+                                RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
+                                RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
+                                RTCIceServer(urls=["stun:stun.cloudflare.com:3478"])
+                            ]
                         )
                         pc = RTCPeerConnection(configuration=config)
 
@@ -206,25 +210,28 @@ async def run_screen_share(server_url: str, agent_id: str):
                         offer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
                         await pc.setRemoteDescription(offer)
 
-                        answer = await pc.createAnswer()
-                        await pc.setLocalDescription(answer)
+                        async def handle_offer(pc, ws):
+                            try:
+                                answer = await pc.createAnswer()
+                                await pc.setLocalDescription(answer)
 
-                        # aiortc DOES NOT emit 'icecandidate' events like browsers.
-                        # We MUST wait for gathering to complete before sending the SDP,
-                        # otherwise the SDP will have no ICE candidates!
-                        print("[ScreenShare] Gathering ICE candidates...")
-                        timeout = 0
-                        while pc.iceGatheringState != "complete" and timeout < 50:
-                            await asyncio.sleep(0.1)
-                            timeout += 1
-                        
-                        print(f"[ScreenShare] ICE gathering finished (state: {pc.iceGatheringState})")
+                                print("[ScreenShare] Gathering ICE candidates...")
+                                timeout = 0
+                                while pc.iceGatheringState != "complete" and timeout < 50:
+                                    await asyncio.sleep(0.1)
+                                    timeout += 1
+                                
+                                print(f"[ScreenShare] ICE gathering finished (state: {pc.iceGatheringState})")
 
-                        await websocket.send(json.dumps({
-                            "type": pc.localDescription.type,
-                            "sdp": pc.localDescription.sdp
-                        }))
-                        print("[ScreenShare] Answer sent")
+                                await ws.send(json.dumps({
+                                    "type": pc.localDescription.type,
+                                    "sdp": pc.localDescription.sdp
+                                }))
+                                print("[ScreenShare] Answer sent")
+                            except Exception as e:
+                                print(f"[ScreenShare] Error in handle_offer: {e}")
+
+                        asyncio.create_task(handle_offer(pc, websocket))
 
                     elif data["type"] == "candidate":
                         from aiortc import RTCIceCandidate

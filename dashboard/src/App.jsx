@@ -538,7 +538,11 @@ function ScreenMonitor({ agentId }) {
 
   useEffect(() => {
     const configuration = {
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
     };
     const pc = new RTCPeerConnection(configuration);
     pcRef.current = pc;
@@ -642,7 +646,11 @@ function MiniScreenMonitor({ agentId, pcName }) {
 
   useEffect(() => {
     const configuration = {
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
     };
     const pc = new RTCPeerConnection(configuration);
     pcRef.current = pc;
