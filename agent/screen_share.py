@@ -73,8 +73,9 @@ def test_video_pipeline():
         codec.time_base = fractions.Fraction(1, 30)
         codec.open()
         packets = codec.encode(frame)
+        # Flush the encoder
+        packets.extend(codec.encode(None))
         print(f"[ScreenShare]   VP8 encode OK: {len(packets)} packets")
-        codec.close()
     except Exception as e:
         print(f"[ScreenShare]   VP8 encode FAILED: {e}")
         print(f"[ScreenShare]   Available codecs: checking...")
@@ -198,24 +199,6 @@ async def run_screen_share(server_url: str, agent_id: str):
                         track = ScreenCaptureTrack()
                         pc.addTrack(track)
 
-                        @pc.on("icecandidate")
-                        async def on_icecandidate(candidate):
-                            if candidate:
-                                try:
-                                    from aiortc.sdp import candidate_to_sdp
-                                    cand_str = candidate_to_sdp(candidate)
-                                    msg = {
-                                        "type": "candidate",
-                                        "candidate": {
-                                            "candidate": "candidate:" + cand_str,
-                                            "sdpMid": candidate.sdpMid,
-                                            "sdpMLineIndex": candidate.sdpMLineIndex,
-                                        }
-                                    }
-                                    await websocket.send(json.dumps(msg))
-                                except Exception as e:
-                                    print(f"[ScreenShare] Error sending candidate: {e}")
-
                         @pc.on("connectionstatechange")
                         async def on_connectionstatechange():
                             print(f"[ScreenShare] WebRTC state: {pc.connectionState}")
@@ -225,6 +208,17 @@ async def run_screen_share(server_url: str, agent_id: str):
 
                         answer = await pc.createAnswer()
                         await pc.setLocalDescription(answer)
+
+                        # aiortc DOES NOT emit 'icecandidate' events like browsers.
+                        # We MUST wait for gathering to complete before sending the SDP,
+                        # otherwise the SDP will have no ICE candidates!
+                        print("[ScreenShare] Gathering ICE candidates...")
+                        timeout = 0
+                        while pc.iceGatheringState != "complete" and timeout < 50:
+                            await asyncio.sleep(0.1)
+                            timeout += 1
+                        
+                        print(f"[ScreenShare] ICE gathering finished (state: {pc.iceGatheringState})")
 
                         await websocket.send(json.dumps({
                             "type": pc.localDescription.type,
