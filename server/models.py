@@ -22,3 +22,26 @@ class AgentMetrics(BaseModel):
 class AgentStatus(BaseModel):
     agent_id: str
     status: str
+
+# --- Command models ---
+
+class StopServiceCommand(BaseModel):
+    agent_id: str
+    service_name: str
+
+class UninstallAppCommand(BaseModel):
+    agent_id: str
+    app_name: str
+
+class CommandRequest(BaseModel):
+    """Generic command sent from dashboard to agent via server."""
+    agent_id: str
+    command: str  # "stop_service", "uninstall_app", "kill_process"
+    payload: dict = {}
+
+class CommandResult(BaseModel):
+    """Result sent back from agent after executing a command."""
+    agent_id: str
+    command: str
+    success: bool
+    message: str = ""

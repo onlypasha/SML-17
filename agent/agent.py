@@ -2,6 +2,7 @@ import time
 import requests
 from agent.collector import get_system_metrics
 from agent.screen_share import start_screen_share_thread
+from agent.command_handler import start_command_listener_thread
 
 def run_agent(config):
     server_url = config.get("server_url")
@@ -16,6 +17,9 @@ def run_agent(config):
 
     # Start screen sharing thread
     start_screen_share_thread(server_url, agent_id)
+
+    # Start command listener thread
+    start_command_listener_thread(server_url, agent_id)
 
     while True:
         try:

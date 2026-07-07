@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from server.routes import agents, files, screen
+from server.routes import agents, files, screen, commands
 
 app = FastAPI(title="SML-17 Server")
 
@@ -16,6 +16,7 @@ app.add_middleware(
 app.include_router(agents.router, prefix="/agents", tags=["agents"])
 app.include_router(files.router, prefix="/files", tags=["files"])
 app.include_router(screen.router, prefix="/screen", tags=["screen"])
+app.include_router(commands.router, prefix="/commands", tags=["commands"])
 
 import os
 from fastapi.staticfiles import StaticFiles
