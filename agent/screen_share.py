@@ -31,6 +31,7 @@ class ScreenCaptureTrack(VideoStreamTrack):
         
         # Create pyav video frame
         frame = av.VideoFrame.from_ndarray(img, format="bgr24")
+        frame = frame.reformat(format="yuv420p")
         frame.pts = pts
         frame.time_base = time_base
         

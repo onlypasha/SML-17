@@ -180,8 +180,12 @@ function ScreenMonitor({ agentId }) {
 
     pc.ontrack = (event) => {
       setStatus('Connected (Live)');
-      if (videoRef.current && event.streams[0]) {
-        videoRef.current.srcObject = event.streams[0];
+      if (videoRef.current) {
+        if (event.streams && event.streams.length > 0) {
+          videoRef.current.srcObject = event.streams[0];
+        } else {
+          videoRef.current.srcObject = new MediaStream([event.track]);
+        }
       }
     };
 
