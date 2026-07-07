@@ -184,23 +184,14 @@ async def run_screen_share(server_url: str, agent_id: str):
                             await pc.close()
 
                         print("[ScreenShare] Received offer")
-                        pc = RTCPeerConnection()
+                        from aiortc import RTCConfiguration, RTCIceServer
+                        config = RTCConfiguration(
+                            iceServers=[RTCIceServer(urls=["stun:stun.l.google.com:19302"])]
+                        )
+                        pc = RTCPeerConnection(configuration=config)
 
                         track = ScreenCaptureTrack()
                         pc.addTrack(track)
-
-                        @pc.on("icecandidate")
-                        async def on_icecandidate(candidate):
-                            if candidate:
-                                msg = {
-                                    "type": "candidate",
-                                    "candidate": {
-                                        "candidate": candidate.candidate,
-                                        "sdpMid": candidate.sdpMid,
-                                        "sdpMLineIndex": candidate.sdpMLineIndex,
-                                    }
-                                }
-                                await websocket.send(json.dumps(msg))
 
                         @pc.on("connectionstatechange")
                         async def on_connectionstatechange():
@@ -212,11 +203,17 @@ async def run_screen_share(server_url: str, agent_id: str):
                         answer = await pc.createAnswer()
                         await pc.setLocalDescription(answer)
 
+                        # Wait for ICE gathering to complete before sending SDP
+                        while True:
+                            if pc.iceGatheringState == "complete":
+                                break
+                            await asyncio.sleep(0.1)
+
                         await websocket.send(json.dumps({
                             "type": pc.localDescription.type,
                             "sdp": pc.localDescription.sdp
                         }))
-                        print("[ScreenShare] Answer sent")
+                        print("[ScreenShare] Answer sent with all candidates")
 
                     elif data["type"] == "candidate":
                         pass

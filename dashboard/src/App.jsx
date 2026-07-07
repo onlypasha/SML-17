@@ -463,7 +463,10 @@ function ScreenMonitor({ agentId }) {
   const [status, setStatus] = useState('Menghubungkan...');
 
   useEffect(() => {
-    const pc = new RTCPeerConnection();
+    const configuration = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    };
+    const pc = new RTCPeerConnection(configuration);
     pcRef.current = pc;
 
     pc.ontrack = (event) => {
@@ -492,6 +495,15 @@ function ScreenMonitor({ agentId }) {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+
+      // Wait for ICE gathering to complete before sending SDP
+      if (pc.iceGatheringState !== 'complete') {
+        await new Promise((resolve) => {
+          pc.onicegatheringstatechange = () => {
+            if (pc.iceGatheringState === 'complete') resolve();
+          };
+        });
+      }
 
       ws.send(JSON.stringify({
         type: pc.localDescription.type,
@@ -564,7 +576,10 @@ function MiniScreenMonitor({ agentId, pcName }) {
   const [status, setStatus] = useState('Menghubungkan...');
 
   useEffect(() => {
-    const pc = new RTCPeerConnection();
+    const configuration = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    };
+    const pc = new RTCPeerConnection(configuration);
     pcRef.current = pc;
 
     pc.ontrack = (event) => {
@@ -593,6 +608,15 @@ function MiniScreenMonitor({ agentId, pcName }) {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+
+      // Wait for ICE gathering to complete before sending SDP
+      if (pc.iceGatheringState !== 'complete') {
+        await new Promise((resolve) => {
+          pc.onicegatheringstatechange = () => {
+            if (pc.iceGatheringState === 'complete') resolve();
+          };
+        });
+      }
 
       ws.send(JSON.stringify({
         type: pc.localDescription.type,
