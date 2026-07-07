@@ -3,8 +3,8 @@
 block_cipher = None
 
 a = Analysis(
-    ['agent/main.py'],
-    pathex=['.'],
+    ['main.py'],
+    pathex=['..'],
     binaries=[],
     datas=[],
     hiddenimports=[],
