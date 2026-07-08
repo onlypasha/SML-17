@@ -56,6 +56,26 @@ async def websocket_dashboard(websocket: WebSocket, agent_id: str):
     try:
         while True:
             data = await websocket.receive_json()
+            
+            # Intercept mDNS candidates from Chrome/Dashboard and replace with real IP
+            if data.get("type") == "candidate" and "candidate" in data:
+                cand_info = data["candidate"]
+                if cand_info and "candidate" in cand_info:
+                    cand_str = cand_info["candidate"]
+                    if ".local" in cand_str:
+                        # Extract the real IP of the dashboard from the websocket connection
+                        # If behind a proxy, we'd use headers, but for local deployment client.host works
+                        real_ip = "127.0.0.1"
+                        if websocket.client:
+                            real_ip = websocket.client.host
+                            
+                        # Replace .local with real_ip
+                        parts = cand_str.split(" ")
+                        for i, part in enumerate(parts):
+                            if ".local" in part:
+                                parts[i] = real_ip
+                        cand_info["candidate"] = " ".join(parts)
+            
             await manager.send_to_agent(agent_id, data)
     except WebSocketDisconnect:
         manager.disconnect_dashboard(agent_id, websocket)
