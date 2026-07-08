@@ -3,6 +3,19 @@ from typing import Dict
 
 router = APIRouter()
 
+import socket
+
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
 class ConnectionManager:
     def __init__(self):
         self.active_agents: Dict[str, WebSocket] = {}
@@ -67,8 +80,12 @@ async def websocket_dashboard(websocket: WebSocket, agent_id: str):
                         if websocket.client:
                             real_ip = websocket.client.host
                             
-                        # If the real_ip is actually localhost, we don't need to replace localhost with localhost
-                        # But if it's not, we must replace .local and 127.x.x.x
+                        # If the dashboard connected via localhost, we MUST provide the Agent
+                        # with the Server's LAN IP, not localhost!
+                        if real_ip in ["127.0.0.1", "localhost", "::1"]:
+                            real_ip = get_local_ip()
+                            
+                        # Now replace if we have a valid LAN IP
                         if real_ip not in ["127.0.0.1", "localhost", "::1"]:
                             parts = cand_str.split(" ")
                             for i, part in enumerate(parts):
