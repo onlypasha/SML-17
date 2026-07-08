@@ -57,24 +57,24 @@ async def websocket_dashboard(websocket: WebSocket, agent_id: str):
         while True:
             data = await websocket.receive_json()
             
-            # Intercept mDNS candidates from Chrome/Dashboard and replace with real IP
+            # Intercept mDNS/localhost candidates from browser and replace with real IP
             if data.get("type") == "candidate" and "candidate" in data:
                 cand_info = data["candidate"]
                 if cand_info and "candidate" in cand_info:
                     cand_str = cand_info["candidate"]
-                    if ".local" in cand_str:
-                        # Extract the real IP of the dashboard from the websocket connection
-                        # If behind a proxy, we'd use headers, but for local deployment client.host works
+                    if ".local" in cand_str or "127.0.0.1" in cand_str or "127.0.1.1" in cand_str:
                         real_ip = "127.0.0.1"
                         if websocket.client:
                             real_ip = websocket.client.host
                             
-                        # Replace .local with real_ip
-                        parts = cand_str.split(" ")
-                        for i, part in enumerate(parts):
-                            if ".local" in part:
-                                parts[i] = real_ip
-                        cand_info["candidate"] = " ".join(parts)
+                        # If the real_ip is actually localhost, we don't need to replace localhost with localhost
+                        # But if it's not, we must replace .local and 127.x.x.x
+                        if real_ip not in ["127.0.0.1", "localhost", "::1"]:
+                            parts = cand_str.split(" ")
+                            for i, part in enumerate(parts):
+                                if ".local" in part or part == "127.0.0.1" or part == "127.0.1.1":
+                                    parts[i] = real_ip
+                            cand_info["candidate"] = " ".join(parts)
             
             await manager.send_to_agent(agent_id, data)
     except WebSocketDisconnect:
