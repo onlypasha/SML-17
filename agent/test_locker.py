@@ -38,10 +38,10 @@ def test_lock_screen_windows(mock_system, mock_popen):
     assert mock_popen.called
     assert command_handler._locker_process == mock_process
     
-    # Check that locker.py is in the arguments and the message is passed
+    # Check that --locker is in the arguments and the message is passed
     args = mock_popen.call_args[0][0]
-    assert 'locker.py' in args[1]
-    assert args[2] == "Pesan Ujian"
+    assert '--locker' in args
+    assert "Pesan Ujian" in args
 
 @patch('agent.command_handler.platform.system')
 def test_lock_screen_non_windows(mock_system):
