@@ -1,20 +1,26 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import Dict
+import socket
 
 router = APIRouter()
 
-import socket
+# Cache the local IP to avoid opening a socket for every ICE candidate
+_LOCAL_IP_CACHE = None
 
 def get_local_ip():
+    global _LOCAL_IP_CACHE
+    if _LOCAL_IP_CACHE is not None:
+        return _LOCAL_IP_CACHE
+        
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(('10.255.255.255', 1))
-        IP = s.getsockname()[0]
+        _LOCAL_IP_CACHE = s.getsockname()[0]
     except Exception:
-        IP = '127.0.0.1'
+        _LOCAL_IP_CACHE = '127.0.0.1'
     finally:
         s.close()
-    return IP
+    return _LOCAL_IP_CACHE
 
 class ConnectionManager:
     def __init__(self):
