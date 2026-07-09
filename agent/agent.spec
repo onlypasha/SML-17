@@ -45,6 +45,7 @@ a = Analysis(
         'agent.screen_share',
         'agent.config',
         'agent.gui',
+        'agent.locker',
         # Network
         'websockets',
         'websockets.legacy',

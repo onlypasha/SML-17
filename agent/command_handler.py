@@ -114,7 +114,15 @@ def lock_screen(message: str) -> dict:
             main_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")
             cmd = [exec_path, main_script, "--locker", message]
             
-        _locker_process = subprocess.Popen(cmd)
+        kwargs = {
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+            "stdin":  subprocess.DEVNULL
+        }
+        if platform.system() == "Windows":
+            kwargs["creationflags"] = 0x08000000 # CREATE_NO_WINDOW
+            
+        _locker_process = subprocess.Popen(cmd, **kwargs)
         return {"command": "lock_screen", "success": True, "message": "Layar berhasil dikunci."}
     except Exception as e:
         cmd_str = str(cmd) if 'cmd' in locals() else "unknown"
