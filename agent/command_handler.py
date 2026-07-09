@@ -193,22 +193,24 @@ def uninstall_app(app_name: str) -> dict:
             for reg_path in reg_paths:
                 try:
                     key = winreg.OpenKey(hive, reg_path)
-                for i in range(winreg.QueryInfoKey(key)[0]):
-                    try:
-                        subkey_name = winreg.EnumKey(key, i)
-                        subkey = winreg.OpenKey(key, subkey_name)
+                    for i in range(winreg.QueryInfoKey(key)[0]):
                         try:
-                            display_name = winreg.QueryValueEx(subkey, "DisplayName")[0]
-                            if display_name.lower() == app_name.lower():
-                                uninstall_string = winreg.QueryValueEx(subkey, "UninstallString")[0]
-                                break
+                            subkey_name = winreg.EnumKey(key, i)
+                            subkey = winreg.OpenKey(key, subkey_name)
+                            try:
+                                display_name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                                if display_name.lower() == app_name.lower():
+                                    uninstall_string = winreg.QueryValueEx(subkey, "UninstallString")[0]
+                                    break
+                            except OSError:
+                                pass
+                            finally:
+                                winreg.CloseKey(subkey)
                         except OSError:
-                            pass
-                        finally:
-                            winreg.CloseKey(subkey)
-                    except OSError:
-                        continue
-                winreg.CloseKey(key)
+                            continue
+                    winreg.CloseKey(key)
+                except OSError:
+                    continue
                 if uninstall_string:
                     break
             if uninstall_string:
