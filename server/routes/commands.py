@@ -69,9 +69,20 @@ async def command_websocket(websocket: WebSocket, agent_id: str):
 @router.post("/send")
 async def send_command(request: CommandRequest):
     """REST endpoint for dashboard to send a command to an agent."""
+    payload = request.payload
+
+    # Prevent localhost loops when Dashboard sends a download URL to the agent
+    if request.command == "download_file" and payload and "url" in payload:
+        url = payload["url"]
+        if "localhost" in url or "127.0.0.1" in url or "::1" in url:
+            from server.routes.screen import get_local_ip
+            real_ip = get_local_ip()
+            url = url.replace("localhost", real_ip).replace("127.0.0.1", real_ip).replace("::1", real_ip)
+            payload["url"] = url
+
     command_data = {
         "command": request.command,
-        "payload": request.payload,
+        "payload": payload,
     }
     result = await command_manager.send_command(request.agent_id, command_data)
     return result
