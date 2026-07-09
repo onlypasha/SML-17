@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import {
   Monitor, Cpu, HardDrive, Activity, ChevronLeft, Circle,
@@ -373,15 +374,27 @@ function AppsTable({ apps, agentId }) {
   });
 
   const handleUninstall = async (appName) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus aplikasi "${appName}" di komputer ini?\n\nPerhatian: Proses ini berjalan di latar belakang dan tidak dapat dibatalkan.`)) return;
+    const result = await Swal.fire({
+      title: 'Hapus Aplikasi?',
+      text: `Apakah Anda yakin ingin menghapus aplikasi "${appName}" di komputer ini?\n\nPerhatian: Proses ini berjalan di latar belakang dan tidak dapat dibatalkan.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, Uninstall!',
+      cancelButtonText: 'Batal'
+    });
+    
+    if (!result.isConfirmed) return;
+    
     try {
       await axios.post(`${API_URL}/commands/uninstall-app`, {
         agent_id: agentId,
         payload: { app_name: appName }
       });
-      alert(`Perintah uninstall dikirim untuk ${appName}.`);
+      Swal.fire('Berhasil!', `Perintah uninstall dikirim untuk ${appName}.`, 'success');
     } catch (e) {
-      alert("Gagal mengirim perintah: " + e.message);
+      Swal.fire('Gagal!', "Gagal mengirim perintah: " + e.message, 'error');
     }
   };
 
@@ -453,15 +466,27 @@ function ServicesTable({ services, agentId }) {
   });
 
   const handleKill = async (pid, name) => {
-    if (!confirm(`Hentikan proses ${name} (PID: ${pid})?`)) return;
+    const result = await Swal.fire({
+      title: 'Hentikan Proses?',
+      text: `Apakah Anda yakin ingin menghentikan proses ${name} (PID: ${pid})?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, Hentikan!',
+      cancelButtonText: 'Batal'
+    });
+    
+    if (!result.isConfirmed) return;
+    
     try {
       await axios.post(`${API_URL}/commands/kill-process`, {
         agent_id: agentId,
         payload: { pid: pid }
       });
-      alert(`Perintah stop dikirim untuk proses ${name}.`);
+      Swal.fire('Berhasil!', `Perintah stop dikirim untuk proses ${name}.`, 'success');
     } catch (e) {
-      alert("Gagal mengirim perintah: " + e.message);
+      Swal.fire('Gagal!', "Gagal mengirim perintah: " + e.message, 'error');
     }
   };
 
@@ -804,9 +829,16 @@ function FileManager({ agents }) {
     try {
       await axios.post(`${API_URL}/files/upload`, formData);
       fetchFiles();
-      alert(`File ${file.name} berhasil diunggah.`);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        icon: 'success',
+        title: `File ${file.name} berhasil diunggah.`
+      });
     } catch (err) {
-      alert("Gagal mengunggah file: " + err.message);
+      Swal.fire('Gagal!', "Gagal mengunggah file: " + err.message, 'error');
     } finally {
       setUploading(false);
       e.target.value = ''; // Reset input
@@ -814,12 +846,24 @@ function FileManager({ agents }) {
   };
 
   const handleDelete = async (filename) => {
-    if (!confirm(`Hapus file ${filename} dari server?`)) return;
+    const result = await Swal.fire({
+      title: 'Hapus File?',
+      text: `Hapus file ${filename} dari server?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, hapus!',
+      cancelButtonText: 'Batal'
+    });
+    
+    if (!result.isConfirmed) return;
+    
     try {
       await axios.delete(`${API_URL}/files/${encodeURIComponent(filename)}`);
       fetchFiles();
     } catch (e) {
-      alert("Gagal menghapus file: " + e.message);
+      Swal.fire('Gagal!', "Gagal menghapus file: " + e.message, 'error');
     }
   };
 
@@ -827,7 +871,7 @@ function FileManager({ agents }) {
     const targetAgents = Object.keys(selectedAgents).filter(id => selectedAgents[id]);
     
     if (targetAgents.length === 0) {
-      alert("Pilih minimal satu agent untuk dikirimi file.");
+      Swal.fire('Perhatian', "Pilih minimal satu agent untuk dikirimi file.", 'warning');
       return;
     }
 
@@ -847,7 +891,7 @@ function FileManager({ agents }) {
       }
     }
 
-    alert(`Perintah download dikirim ke ${successCount} agent.`);
+    Swal.fire('Berhasil!', `Perintah download dikirim ke ${successCount} agent.`, 'success');
   };
 
   const toggleSelectAll = (e) => {
