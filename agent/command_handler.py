@@ -104,12 +104,21 @@ def lock_screen(message: str) -> dict:
     if _locker_process and _locker_process.poll() is None:
         _locker_process.kill()
         
-    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "locker.py")
     try:
-        _locker_process = subprocess.Popen([sys.executable, script_path, message])
+        import sys, os
+        exec_path = sys.executable or "python"
+        
+        if getattr(sys, 'frozen', False):
+            cmd = [exec_path, "--locker", message]
+        else:
+            main_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")
+            cmd = [exec_path, main_script, "--locker", message]
+            
+        _locker_process = subprocess.Popen(cmd)
         return {"command": "lock_screen", "success": True, "message": "Layar berhasil dikunci."}
     except Exception as e:
-        return {"command": "lock_screen", "success": False, "message": str(e)}
+        cmd_str = str(cmd) if 'cmd' in locals() else "unknown"
+        return {"command": "lock_screen", "success": False, "message": f"{str(e)} | cmd: {cmd_str}"}
 
 def unlock_screen() -> dict:
     global _locker_process
@@ -124,25 +133,28 @@ def unlock_screen() -> dict:
 
 
 def download_file(filename: str, url: str) -> dict:
-    """Download a file from the server and save it to the public desktop."""
+    """Download a file from the server and save it to the Downloads folder."""
     if not filename or not url:
         return {"command": "download_file", "success": False, "message": "Missing filename or url."}
     
     import urllib.request
     import os
     
-    # Use Public Desktop so all users can see it
     if platform.system() == "Windows":
-        desktop = os.environ.get("PUBLIC", "C:\\Users\\Public") + "\\Desktop"
+        user_profile = os.environ.get("USERPROFILE")
+        if user_profile:
+            downloads_dir = os.path.join(user_profile, "Downloads")
+        else:
+            downloads_dir = os.path.expanduser("~/Downloads")
     else:
-        desktop = os.path.expanduser("~/Desktop")
+        downloads_dir = os.path.expanduser("~/Downloads")
         
-    os.makedirs(desktop, exist_ok=True)
-    dest_path = os.path.join(desktop, filename)
+    os.makedirs(downloads_dir, exist_ok=True)
+    dest_path = os.path.join(downloads_dir, filename)
     
     try:
         urllib.request.urlretrieve(url, dest_path)
-        return {"command": "download_file", "success": True, "message": f"File '{filename}' downloaded to Desktop."}
+        return {"command": "download_file", "success": True, "message": f"File berhasil diunduh ke {dest_path}"}
     except Exception as e:
         return {"command": "download_file", "success": False, "message": str(e)}
 
