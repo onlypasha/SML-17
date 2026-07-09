@@ -16,8 +16,16 @@ def block_keys():
 
 def main():
     message = "PC TERKUNCI"
-    if len(sys.argv) > 1:
-        message = sys.argv[1]
+    words = []
+    for arg in sys.argv[1:]:
+        if arg != "--locker" and not arg.endswith("main.py") and not arg.endswith("locker.py"):
+            words.append(arg)
+            
+    if words:
+        message = " ".join(words)
+        
+    if not message.strip():
+        message = "PC TERKUNCI"
 
     root = tk.Tk()
     root.attributes("-fullscreen", True)
