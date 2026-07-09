@@ -8,7 +8,8 @@ import {
   FileUp, FolderDown, Send, Lock, Unlock, ArrowUpRight, Package, File as FileIcon, UploadCloud, LayoutGrid
 } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = window.location.port === '5173' ? 'http://localhost:8000' : '';
+const WS_URL = window.location.port === '5173' ? 'ws://localhost:8000' : (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host;
 const HISTORY_LENGTH = 20;
 
 function App() {
@@ -435,8 +436,9 @@ function AppsTable({ apps, agentId }) {
     if (!result.isConfirmed) return;
     
     try {
-      await axios.post(`${API_URL}/commands/uninstall-app`, {
+      await axios.post(`${API_URL}/commands/send`, {
         agent_id: agentId,
+        command: "uninstall_app",
         payload: { app_name: appName }
       });
       Swal.fire('Berhasil!', `Perintah uninstall dikirim untuk ${appName}.`, 'success');
@@ -527,8 +529,9 @@ function ServicesTable({ services, agentId }) {
     if (!result.isConfirmed) return;
     
     try {
-      await axios.post(`${API_URL}/commands/kill-process`, {
+      await axios.post(`${API_URL}/commands/send`, {
         agent_id: agentId,
+        command: "kill_process",
         payload: { pid: pid }
       });
       Swal.fire('Berhasil!', `Perintah stop dikirim untuk proses ${name}.`, 'success');
@@ -636,7 +639,7 @@ function ScreenMonitor({ agentId }) {
       }
     };
 
-    const wsUrl = API_URL.replace('http', 'ws') + `/screen/ws/dashboard/${agentId}`;
+    const wsUrl = WS_URL + `/screen/ws/dashboard/${agentId}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = async () => {
@@ -744,7 +747,7 @@ function MiniScreenMonitor({ agentId, pcName }) {
       }
     };
 
-    const wsUrl = API_URL.replace('http', 'ws') + `/screen/ws/dashboard/${agentId}`;
+    const wsUrl = WS_URL + `/screen/ws/dashboard/${agentId}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = async () => {
