@@ -33,16 +33,18 @@ def get_installed_apps() -> list:
         try:
             import winreg
 
+            hives = [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]
             registry_paths = [
                 r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
                 r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
             ]
 
-            for reg_path in registry_paths:
-                try:
-                    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path)
-                except OSError:
-                    continue
+            for hive in hives:
+                for reg_path in registry_paths:
+                    try:
+                        key = winreg.OpenKey(hive, reg_path)
+                    except OSError:
+                        continue
 
                 try:
                     i = 0

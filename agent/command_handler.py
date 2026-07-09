@@ -122,15 +122,16 @@ def uninstall_app(app_name: str) -> dict:
         
         uninstall_string = None
         
-        # Search in both 64-bit and 32-bit registry
+        hives = [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]
         reg_paths = [
             r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
             r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
         ]
         
-        for reg_path in reg_paths:
-            try:
-                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path)
+        for hive in hives:
+            for reg_path in reg_paths:
+                try:
+                    key = winreg.OpenKey(hive, reg_path)
                 for i in range(winreg.QueryInfoKey(key)[0]):
                     try:
                         subkey_name = winreg.EnumKey(key, i)
@@ -140,7 +141,7 @@ def uninstall_app(app_name: str) -> dict:
                             if display_name.lower() == app_name.lower():
                                 uninstall_string = winreg.QueryValueEx(subkey, "UninstallString")[0]
                                 break
-                        except FileNotFoundError:
+                        except OSError:
                             pass
                         finally:
                             winreg.CloseKey(subkey)
@@ -149,8 +150,8 @@ def uninstall_app(app_name: str) -> dict:
                 winreg.CloseKey(key)
                 if uninstall_string:
                     break
-            except OSError:
-                continue
+            if uninstall_string:
+                break
 
         if not uninstall_string:
             return {"command": "uninstall_app", "success": False, "message": f"Uninstall string not found for '{app_name}'."}
@@ -158,12 +159,12 @@ def uninstall_app(app_name: str) -> dict:
         # Run uninstall (silent if possible)
         # Add /S or /silent for common installers
         if "msiexec" in uninstall_string.lower():
-            cmd = uninstall_string.replace("/I", "/X") + " /qn"
+            cmd = uninstall_string.replace("/I", "/X").replace("/i", "/x") + " /qn"
         else:
             cmd = uninstall_string + " /S"
 
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=120
+            cmd, shell=False, capture_output=True, text=True, timeout=120
         )
         
         if result.returncode == 0:
@@ -186,6 +187,10 @@ def kill_process(pid: int) -> dict:
         proc_name = proc.name()
         proc.kill()
         return {"command": "kill_process", "success": True, "message": f"Process '{proc_name}' (PID {pid}) killed."}
+    except psutil.AccessDenied:
+        return {"command": "kill_process", "success": False, "message": "Access denied. Try running the Agent as Administrator."}
+    except psutil.NoSuchProcess:
+        return {"command": "kill_process", "success": False, "message": f"Process {pid} not found or already dead."}
     except Exception as e:
         return {"command": "kill_process", "success": False, "message": str(e)}
 
