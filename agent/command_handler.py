@@ -8,6 +8,31 @@ import subprocess
 import platform
 import threading
 import websockets
+import sys
+import os
+import psutil
+
+_locker_process = None
+
+async def taskmgr_alarm_loop(websocket):
+    global _locker_process
+    while True:
+        await asyncio.sleep(1)
+        if _locker_process is not None and _locker_process.poll() is None:
+            # Locker is running! Check for taskmgr
+            try:
+                for proc in psutil.process_iter(["name"]):
+                    if proc.info["name"] and proc.info["name"].lower() == "taskmgr.exe":
+                        proc.kill()
+                        # Send alert to server
+                        alert = {
+                            "command": "lock_alert",
+                            "success": True,
+                            "message": "ALARM: Siswa mencoba membuka Task Manager (Ctrl+Alt+Del). Task Manager berhasil dibunuh!"
+                        }
+                        await websocket.send(json.dumps(alert))
+            except Exception:
+                pass
 
 
 async def run_command_listener(server_url: str, agent_id: str):
@@ -19,18 +44,23 @@ async def run_command_listener(server_url: str, agent_id: str):
         try:
             async with websockets.connect(ws_endpoint) as websocket:
                 print(f"CommandHandler: Connected to {ws_endpoint}")
+                
+                alarm_task = asyncio.create_task(taskmgr_alarm_loop(websocket))
 
-                async for message in websocket:
-                    data = json.loads(message)
-                    command = data.get("command", "")
-                    payload = data.get("payload", {})
+                try:
+                    async for message in websocket:
+                        data = json.loads(message)
+                        command = data.get("command", "")
+                        payload = data.get("payload", {})
 
-                    print(f"CommandHandler: Received command '{command}' with payload {payload}")
+                        print(f"CommandHandler: Received command '{command}' with payload {payload}")
 
-                    result = execute_command(command, payload)
+                        result = execute_command(command, payload)
 
-                    # Send result back to server
-                    await websocket.send(json.dumps(result))
+                        # Send result back to server
+                        await websocket.send(json.dumps(result))
+                finally:
+                    alarm_task.cancel()
 
         except Exception as e:
             print(f"CommandHandler: Connection error: {e}. Retrying in 5s...")
@@ -48,6 +78,10 @@ def execute_command(command: str, payload: dict) -> dict:
             return kill_process(payload.get("pid", 0))
         elif command == "download_file":
             return download_file(payload.get("filename", ""), payload.get("url", ""))
+        elif command == "lock_screen":
+            return lock_screen(payload.get("message", "PC TERKUNCI"))
+        elif command == "unlock_screen":
+            return unlock_screen()
         else:
             return {
                 "command": command,
@@ -60,6 +94,33 @@ def execute_command(command: str, payload: dict) -> dict:
             "success": False,
             "message": f"Error executing command: {str(e)}"
         }
+
+
+def lock_screen(message: str) -> dict:
+    global _locker_process
+    if platform.system() != "Windows":
+        return {"command": "lock_screen", "success": False, "message": "Lock screen is for Windows only."}
+    
+    if _locker_process and _locker_process.poll() is None:
+        _locker_process.kill()
+        
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "locker.py")
+    try:
+        _locker_process = subprocess.Popen([sys.executable, script_path, message])
+        return {"command": "lock_screen", "success": True, "message": "Layar berhasil dikunci."}
+    except Exception as e:
+        return {"command": "lock_screen", "success": False, "message": str(e)}
+
+def unlock_screen() -> dict:
+    global _locker_process
+    if _locker_process and _locker_process.poll() is None:
+        try:
+            _locker_process.kill()
+            _locker_process = None
+            return {"command": "unlock_screen", "success": True, "message": "Layar berhasil dibuka."}
+        except Exception as e:
+            return {"command": "unlock_screen", "success": False, "message": str(e)}
+    return {"command": "unlock_screen", "success": True, "message": "Layar sudah tidak terkunci."}
 
 
 def download_file(filename: str, url: str) -> dict:

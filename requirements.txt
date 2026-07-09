@@ -13,3 +13,4 @@ av
 mss
 websockets
 numpy
+keyboard

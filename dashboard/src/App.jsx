@@ -4,8 +4,8 @@ import Swal from 'sweetalert2';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import {
   Monitor, Cpu, HardDrive, Activity, ChevronLeft, Circle,
-  ArrowUpRight, LayoutGrid, Package, Cog, X, Trash2, XCircle,
-  UploadCloud, File as FileIcon, Send, RefreshCw
+  RefreshCw, Power, Server, PlayCircle, StopCircle, Cog, Play, Trash2, XCircle, X,
+  FileUp, FolderDown, Send, Lock, Unlock, ArrowUpRight, Package, File as FileIcon, UploadCloud, LayoutGrid
 } from 'lucide-react';
 
 const API_URL = 'http://localhost:8000';
@@ -312,17 +312,64 @@ function AgentDetail({ agent, agentId }) {
     );
   }
 
+  const handleLock = async () => {
+    const { value: message } = await Swal.fire({
+      title: 'Kunci PC',
+      input: 'text',
+      inputLabel: 'Pesan untuk ditampilkan di layar siswa:',
+      inputValue: 'Harap perhatikan instruktur di depan kelas.',
+      showCancelButton: true,
+      confirmButtonText: 'Kunci Sekarang'
+    });
+
+    if (message) {
+      try {
+        await axios.post(`${API_URL}/commands/send`, {
+          agent_id: agentId,
+          command: "lock_screen",
+          payload: { message }
+        });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Kunci berhasil dikirim', showConfirmButton: false, timer: 3000 });
+      } catch (e) {
+        Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
+      }
+    }
+  };
+
+  const handleUnlock = async () => {
+    try {
+      await axios.post(`${API_URL}/commands/send`, {
+        agent_id: agentId,
+        command: "unlock_screen",
+        payload: {}
+      });
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Buka Kunci berhasil dikirim', showConfirmButton: false, timer: 3000 });
+    } catch (e) {
+      Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
+    }
+  };
+
   return (
     <div className="detail-view">
-      <div className="detail-header">
+      <div className="detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 className="detail-title">{agent.pc_name}</h2>
           <span className="detail-agent-id">{agentId}</span>
+          <span className={`conn-tag ${agent.status === 'online' ? 'conn-live' : 'conn-wait'}`} style={{ marginLeft: '10px' }}>
+            {agent.status === 'online' && <span className="live-dot" />}
+            {agent.status === 'online' ? 'Online' : 'Offline'}
+          </span>
         </div>
-        <span className={`conn-tag ${agent.status === 'online' ? 'conn-live' : 'conn-wait'}`}>
-          {agent.status === 'online' && <span className="live-dot" />}
-          {agent.status === 'online' ? 'Online' : 'Offline'}
-        </span>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="view-btn" onClick={handleLock} disabled={agent.status !== 'online'} style={{ background: '#d33', color: 'white', borderColor: '#d33' }}>
+            <Lock size={14} />
+            Kunci PC
+          </button>
+          <button className="view-btn" onClick={handleUnlock} disabled={agent.status !== 'online'} style={{ background: '#3085d6', color: 'white', borderColor: '#3085d6' }}>
+            <Unlock size={14} />
+            Buka Kunci
+          </button>
+        </div>
       </div>
 
       <div className="detail-tabs">
