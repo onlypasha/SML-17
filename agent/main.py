@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agent.config import load_config
 from agent.gui import run_gui
 from agent.agent import run_agent
+from agent import locker
 
 def check_single_instance():
     if sys.platform == "win32":
@@ -23,6 +24,10 @@ def check_single_instance():
     return None
 
 def main():
+    if "--locker" in sys.argv:
+        locker.main()
+        return
+
     mutex = check_single_instance()
     
     # Redirect stdout/stderr to a log file when running in background mode
