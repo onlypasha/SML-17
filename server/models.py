@@ -39,6 +39,11 @@ class CommandRequest(BaseModel):
     command: str  # "stop_service", "uninstall_app", "kill_process"
     payload: dict = {}
 
+class BroadcastCommandRequest(BaseModel):
+    """Generic command sent from dashboard to ALL connected agents via server."""
+    command: str
+    payload: dict = {}
+
 class CommandResult(BaseModel):
     """Result sent back from agent after executing a command."""
     agent_id: str

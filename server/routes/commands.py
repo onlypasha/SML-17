@@ -3,7 +3,7 @@ from typing import Dict, List
 import asyncio
 import json
 
-from server.models import CommandRequest
+from server.models import CommandRequest, BroadcastCommandRequest
 
 router = APIRouter()
 
@@ -86,6 +86,33 @@ async def send_command(request: CommandRequest):
     }
     result = await command_manager.send_command(request.agent_id, command_data)
     return result
+
+
+@router.post("/broadcast")
+async def broadcast_command(request: BroadcastCommandRequest):
+    """REST endpoint for dashboard to broadcast a command to ALL connected agents."""
+    payload = request.payload
+
+    command_data = {
+        "command": request.command,
+        "payload": payload,
+    }
+    
+    success_count = 0
+    fail_count = 0
+    
+    agent_ids = list(command_manager.agent_connections.keys())
+    for agent_id in agent_ids:
+        res = await command_manager.send_command(agent_id, command_data)
+        if res.get("success"):
+            success_count += 1
+        else:
+            fail_count += 1
+
+    return {
+        "success": True, 
+        "message": f"Broadcast complete. Sent to {success_count} agents, failed on {fail_count} agents."
+    }
 
 
 @router.post("/stop-service")
