@@ -1,4 +1,4 @@
-name: Build Windows Executables
+name: Build Server
 
 on:
   push:
@@ -40,14 +40,9 @@ jobs:
       run: |
         pyinstaller server.spec --clean
 
-    - name: Build Agent with PyInstaller
-      run: |
-        pyinstaller --noconfirm --onefile --windowed --name "agent" agent/main.py
-
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: SML-17-Windows-Binaries
+        name: server-windows
         path: |
           dist/server.exe
-          dist/agent.exe
