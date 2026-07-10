@@ -71,42 +71,6 @@ function App() {
     return historyRef.current[agentId] || [];
   }, []);
 
-  const handleLockAll = async () => {
-    const { value: message } = await Swal.fire({
-      title: 'Kunci Semua PC',
-      input: 'text',
-      inputLabel: 'Pesan untuk ditampilkan di layar siswa:',
-      inputValue: 'Harap perhatikan instruktur di depan kelas.',
-      showCancelButton: true,
-      confirmButtonText: 'Kunci Semua',
-      confirmButtonColor: '#f59e0b'
-    });
-
-    if (message) {
-      try {
-        await axios.post(`${API_URL}/commands/broadcast`, {
-          command: "lock_screen",
-          payload: { message }
-        });
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Kunci berhasil di-broadcast', showConfirmButton: false, timer: 3000 });
-      } catch (e) {
-        Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
-      }
-    }
-  };
-
-  const handleUnlockAll = async () => {
-    try {
-      await axios.post(`${API_URL}/commands/broadcast`, {
-        command: "unlock_screen",
-        payload: {}
-      });
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Buka Kunci berhasil di-broadcast', showConfirmButton: false, timer: 3000 });
-    } catch (e) {
-      Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
-    }
-  };
-
   return (
     <div className="app">
       <header className="topbar">
@@ -164,35 +128,15 @@ function App() {
                 <h2 className="page-title">Komputer Lab</h2>
                 <p className="page-subtitle">{agentList.length} unit terdaftar</p>
               </div>
-              <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div className="status-pills">
-                  <span className="pill pill-online">
-                    <Circle size={8} fill="currentColor" />
-                    {onlineCount} aktif
-                  </span>
-                  <span className="pill pill-offline">
-                    <Circle size={8} fill="currentColor" />
-                    {offlineCount} mati
-                  </span>
-                </div>
-                <div className="bulk-actions" style={{ display: 'flex', gap: '0.5rem', borderLeft: '1px solid var(--border)', paddingLeft: '1rem' }}>
-                  <button 
-                    className="btn btn-warning" 
-                    onClick={handleLockAll} 
-                    disabled={onlineCount === 0}
-                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
-                  >
-                    <Lock size={14} /> Kunci Semua
-                  </button>
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={handleUnlockAll} 
-                    disabled={onlineCount === 0}
-                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
-                  >
-                    <Unlock size={14} /> Buka Semua
-                  </button>
-                </div>
+              <div className="status-pills">
+                <span className="pill pill-online">
+                  <Circle size={8} fill="currentColor" />
+                  {onlineCount} aktif
+                </span>
+                <span className="pill pill-offline">
+                  <Circle size={8} fill="currentColor" />
+                  {offlineCount} mati
+                </span>
               </div>
             </div>
 
@@ -883,12 +827,64 @@ function MultiScreenMonitor({ agents }) {
     );
   }
 
+  const handleLockAll = async () => {
+    const { value: message } = await Swal.fire({
+      title: 'Kunci Semua PC',
+      input: 'text',
+      inputLabel: 'Pesan untuk ditampilkan di layar siswa:',
+      inputValue: 'Harap perhatikan instruktur di depan kelas.',
+      showCancelButton: true,
+      confirmButtonText: 'Kunci Semua',
+      confirmButtonColor: '#f59e0b'
+    });
+
+    if (message) {
+      try {
+        await axios.post(`${API_URL}/commands/broadcast`, {
+          command: "lock_screen",
+          payload: { message }
+        });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Kunci berhasil di-broadcast', showConfirmButton: false, timer: 3000 });
+      } catch (e) {
+        Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
+      }
+    }
+  };
+
+  const handleUnlockAll = async () => {
+    try {
+      await axios.post(`${API_URL}/commands/broadcast`, {
+        command: "unlock_screen",
+        payload: {}
+      });
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Buka Kunci berhasil di-broadcast', showConfirmButton: false, timer: 3000 });
+    } catch (e) {
+      Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
+    }
+  };
+
   return (
     <div>
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 className="page-title">Monitor Semua Layar</h2>
           <p className="page-subtitle">{agents.length} komputer aktif</p>
+        </div>
+        <div className="bulk-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-warning" 
+            onClick={handleLockAll} 
+            style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
+          >
+            <Lock size={14} /> Kunci Semua
+          </button>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleUnlockAll} 
+            style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
+          >
+            <Unlock size={14} /> Buka Semua
+          </button>
         </div>
       </div>
       <div className="multi-screen-grid">
