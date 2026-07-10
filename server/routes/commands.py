@@ -102,9 +102,11 @@ async def broadcast_command(request: BroadcastCommandRequest):
     fail_count = 0
     
     agent_ids = list(command_manager.agent_connections.keys())
-    for agent_id in agent_ids:
-        res = await command_manager.send_command(agent_id, command_data)
-        if res.get("success"):
+    tasks = [command_manager.send_command(agent_id, command_data) for agent_id in agent_ids]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    for res in results:
+        if isinstance(res, dict) and res.get("success"):
             success_count += 1
         else:
             fail_count += 1
