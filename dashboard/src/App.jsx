@@ -15,6 +15,7 @@ const HISTORY_LENGTH = 20;
 function App() {
   const [agents, setAgents] = useState({});
   const [selectedAgent, setSelectedAgent] = useState(null);
+  const [lockedAgents, setLockedAgents] = useState(new Set());
   const [view, setView] = useState('grid'); // 'grid' | 'detail' | 'multiscreen'
   const historyRef = useRef({});
 
@@ -116,9 +117,22 @@ function App() {
             agent={agents[selectedAgent]}
             agentId={selectedAgent}
             onBack={handleBack}
+            isLocked={lockedAgents.has(selectedAgent)}
+            setLocked={(val) => {
+              setLockedAgents(prev => {
+                const next = new Set(prev);
+                if (val) next.add(selectedAgent);
+                else next.delete(selectedAgent);
+                return next;
+              });
+            }}
           />
         ) : view === 'multiscreen' ? (
-          <MultiScreenMonitor agents={onlineAgents} />
+          <MultiScreenMonitor 
+            agents={onlineAgents} 
+            lockedAgents={lockedAgents}
+            setLockedAgents={setLockedAgents}
+          />
         ) : view === 'filemanager' ? (
           <FileManager agents={onlineAgents} />
         ) : (
@@ -301,7 +315,7 @@ function Metric({ icon: Icon, label, value, warn }) {
 }
 
 /* ---- Agent Detail View ---- */
-function AgentDetail({ agent, agentId }) {
+function AgentDetail({ agent, agentId, onBack, isLocked, setLocked }) {
   const [activeTab, setActiveTab] = useState('screen');
 
   if (!agent) {
@@ -331,6 +345,7 @@ function AgentDetail({ agent, agentId }) {
           payload: { message }
         });
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Kunci berhasil dikirim', showConfirmButton: false, timer: 3000 });
+        setLocked(true);
       } catch (e) {
         Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
       }
@@ -345,6 +360,7 @@ function AgentDetail({ agent, agentId }) {
         payload: {}
       });
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Buka Kunci berhasil dikirim', showConfirmButton: false, timer: 3000 });
+      setLocked(false);
     } catch (e) {
       Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
     }
@@ -362,11 +378,11 @@ function AgentDetail({ agent, agentId }) {
           </span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="view-btn" onClick={handleLock} disabled={agent.status !== 'online'} style={{ background: '#d33', color: 'white', borderColor: '#d33' }}>
+          <button className="view-btn" onClick={handleLock} disabled={agent.status !== 'online' || isLocked} style={{ background: '#d33', color: 'white', borderColor: '#d33' }}>
             <Lock size={14} />
             Kunci PC
           </button>
-          <button className="view-btn" onClick={handleUnlock} disabled={agent.status !== 'online'} style={{ background: '#3085d6', color: 'white', borderColor: '#3085d6' }}>
+          <button className="view-btn" onClick={handleUnlock} disabled={agent.status !== 'online' || !isLocked} style={{ background: '#3085d6', color: 'white', borderColor: '#3085d6' }}>
             <Unlock size={14} />
             Buka Kunci
           </button>
@@ -412,7 +428,6 @@ function AgentDetail({ agent, agentId }) {
   );
 }
 
-/* ---- Apps Table ---- */
 /* ---- Apps Table ---- */
 function AppsTable({ apps, agentId }) {
   const [filter, setFilter] = useState('');
@@ -505,7 +520,6 @@ function AppsTable({ apps, agentId }) {
   );
 }
 
-/* ---- Services / Processes Table ---- */
 /* ---- Services / Processes Table ---- */
 function ServicesTable({ services, agentId }) {
   const [filter, setFilter] = useState('');
@@ -816,7 +830,7 @@ function MiniScreenMonitor({ agentId, pcName }) {
 }
 
 /* ---- Multi-Screen Monitor Page ---- */
-function MultiScreenMonitor({ agents }) {
+function MultiScreenMonitor({ agents, lockedAgents, setLockedAgents }) {
   if (agents.length === 0) {
     return (
       <div className="empty-state">
@@ -845,6 +859,7 @@ function MultiScreenMonitor({ agents }) {
           payload: { message }
         });
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Kunci berhasil di-broadcast', showConfirmButton: false, timer: 3000 });
+        setLockedAgents(new Set(agents.map(a => a.agent_id)));
       } catch (e) {
         Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
       }
@@ -858,10 +873,15 @@ function MultiScreenMonitor({ agents }) {
         payload: {}
       });
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perintah Buka Kunci berhasil di-broadcast', showConfirmButton: false, timer: 3000 });
+      setLockedAgents(new Set());
     } catch (e) {
       Swal.fire('Gagal!', 'Tidak dapat mengirim perintah: ' + e.message, 'error');
     }
   };
+
+  const onlineCount = agents.length;
+  const allLocked = onlineCount > 0 && agents.every(a => lockedAgents.has(a.agent_id));
+  const noneLocked = onlineCount === 0 || agents.every(a => !lockedAgents.has(a.agent_id));
 
   return (
     <div>
@@ -874,6 +894,7 @@ function MultiScreenMonitor({ agents }) {
           <button 
             className="btn btn-warning" 
             onClick={handleLockAll} 
+            disabled={onlineCount === 0 || allLocked}
             style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
           >
             <Lock size={14} /> Kunci Semua
@@ -881,6 +902,7 @@ function MultiScreenMonitor({ agents }) {
           <button 
             className="btn btn-primary" 
             onClick={handleUnlockAll} 
+            disabled={onlineCount === 0 || noneLocked}
             style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
           >
             <Unlock size={14} /> Buka Semua
