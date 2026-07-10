@@ -1,0 +1,53 @@
+name: Build Windows Executables
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Install dependencies and build dashboard
+      run: |
+        cd dashboard
+        npm ci
+        npm run build
+        cd ..
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build Server with PyInstaller
+      run: |
+        pyinstaller server.spec --clean
+
+    - name: Build Agent with PyInstaller
+      run: |
+        pyinstaller --noconfirm --onefile --windowed --name "agent" agent/main.py
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: SML-17-Windows-Binaries
+        path: |
+          dist/server.exe
+          dist/agent.exe
