@@ -2,13 +2,24 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from pathlib import Path
 import os
+import sys
 import shutil
 
 router = APIRouter()
 
-# Directory for shared files
-SHARED_DIR = Path(__file__).parent.parent / "shared_files"
-SHARED_DIR.mkdir(exist_ok=True)
+def get_shared_dir() -> Path:
+    if getattr(sys, 'frozen', False):
+        # Running as PyInstaller bundle (.exe)
+        base_dir = Path(sys.executable).parent
+    else:
+        # Running from source
+        base_dir = Path(__file__).parent.parent
+    
+    shared = base_dir / "shared_files"
+    shared.mkdir(exist_ok=True)
+    return shared
+
+SHARED_DIR = get_shared_dir()
 
 
 @router.get("/")
