@@ -1,8 +1,19 @@
 import json
 import os
+import sys
 import uuid
 
-CONFIG_FILE = "config.json"
+def get_config_path():
+    appdata = os.environ.get('APPDATA')
+    if appdata:
+        dir_path = os.path.join(appdata, 'SML17_Agent')
+    else:
+        dir_path = os.path.join(os.path.expanduser('~'), '.sml17_agent')
+    
+    os.makedirs(dir_path, exist_ok=True)
+    return os.path.join(dir_path, 'config.json')
+
+CONFIG_FILE = get_config_path()
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
